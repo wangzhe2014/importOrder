@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Package, RotateCcw } from 'lucide-react';
 import { ShipmentData, FIELD_DISPLAY_NAMES } from '@/types';
 import { getShipments } from '@/api/shipments';
 
@@ -14,12 +14,18 @@ export function ShipmentList() {
     start_date: '',
     end_date: '',
   });
+  const [searchFilters, setSearchFilters] = useState({
+    external_code: '',
+    receiver_name: '',
+    start_date: '',
+    end_date: '',
+  });
   const [loading, setLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const result = await getShipments(page, limit, filters);
+      const result = await getShipments(page, limit, searchFilters);
       setData(result.data);
       setTotal(result.total);
     } catch (error) {
@@ -31,10 +37,30 @@ export function ShipmentList() {
 
   useEffect(() => {
     loadData();
-  }, [page, filters]);
+  }, [page, searchFilters]);
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSearch = () => {
+    setSearchFilters({ ...filters });
+    setPage(1);
+  };
+
+  const handleReset = () => {
+    setFilters({
+      external_code: '',
+      receiver_name: '',
+      start_date: '',
+      end_date: '',
+    });
+    setSearchFilters({
+      external_code: '',
+      receiver_name: '',
+      start_date: '',
+      end_date: '',
+    });
     setPage(1);
   };
 
@@ -48,7 +74,7 @@ export function ShipmentList() {
           <h3 className="text-lg font-semibold text-gray-800">已导入运单列表</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -91,6 +117,24 @@ export function ShipmentList() {
               onChange={(e) => handleFilterChange('end_date', e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              disabled={loading}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 transition-colors"
+            >
+              <Search className="w-4 h-4" />
+              查询
+            </button>
+            <button
+              onClick={handleReset}
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              重置
+            </button>
           </div>
         </div>
       </div>
