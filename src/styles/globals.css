@@ -2,34 +2,133 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: 15, 198, 194; /* #0fc6c2 */
+  --primary-hover: 11, 173, 169; /* #0bada9 */
+  --primary-light: 232, 250, 250; /* #e8fafa */
+  --primary-border: 208, 232, 232; /* #d0e8e8 */
+  --text-main: 29, 33, 41; /* #1d2129 */
+  --text-muted: 134, 144, 156; /* #86909c */
+  --text-description: 78, 89, 105; /* #4e5969 */
+  --bg-main: 247, 248, 250; /* #f7f8fa */
+  --border-color: 229, 230, 235; /* #e5e6eb */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  color: rgb(var(--text-main));
+  background-color: rgb(var(--bg-main));
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom premium class styles */
+.jt-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgb(var(--border-color));
+  transition: all 0.2s ease;
+}
+
+.jt-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.jt-panel {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgb(var(--border-color));
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+.jt-hero-panel {
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 255, 255, 0.95)),
+    radial-gradient(circle at top right, rgba(var(--primary), 0.16), transparent 34%);
+  border: 1px solid rgb(var(--primary-border));
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+}
+
+.jt-eyebrow {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: rgb(var(--primary-hover));
+}
+
+.jt-link-button {
+  display: inline-flex;
+  align-items: center;
+  color: rgb(var(--text-muted));
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.jt-link-button:hover {
+  color: rgb(var(--primary));
+}
+
+.jt-btn-primary {
+  background-color: rgb(var(--primary));
+  color: white;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.jt-btn-primary:hover:not(:disabled) {
+  background-color: rgb(var(--primary-hover));
+  transform: translateY(-1px);
+}
+
+.jt-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.jt-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Custom virtual scrollbars */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f5f5f5;
   border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #dcdcdc;
   border-radius: 3px;
+  transition: background 0.2s ease;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #c0c0c0;
 }

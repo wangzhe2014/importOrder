@@ -1,131 +1,161 @@
-import { ShipmentData, ImportError, PreviewRow, REQUIRED_FIELDS, TEMPERATURE_OPTIONS } from '@/types';
+// src/utils/validator.ts
+
+import { ShipmentData, ImportError, PreviewRow, REQUIRED_FIELDS } from '@/types'
 
 export function validateRow(row: Partial<ShipmentData>, rowIndex: number): ImportError[] {
-  const errors: ImportError[] = [];
-  
+  const errors: ImportError[] = []
+
   REQUIRED_FIELDS.forEach((field) => {
-    const value = row[field];
+    const value = row[field]
     if (value === undefined || value === null || String(value).trim() === '') {
       errors.push({
         rowIndex,
         field: field.toString(),
         message: '必填字段缺失',
-      });
+      })
     }
-  });
-  
-  if (row.sender_phone && !validatePhone(String(row.sender_phone))) {
+  })
+
+  const storeName = String(row.store_name || '').trim()
+  const receiverName = String(row.receiver_name || '').trim()
+  const receiverPhone = String(row.receiver_phone || '').trim()
+  const receiverAddress = String(row.receiver_address || '').trim()
+
+  const hasStore = storeName !== ''
+  const hasReceiver = receiverName !== '' && receiverPhone !== '' && receiverAddress !== ''
+
+  if (!hasStore && !hasReceiver) {
     errors.push({
       rowIndex,
-      field: 'sender_phone',
-      message: '电话格式错误',
-    });
+      field: 'store_name',
+      message: '收货门店，或收件人姓名+电话+地址二选一必填',
+    })
+
+    if (receiverName === '') {
+      errors.push({
+        rowIndex,
+        field: 'receiver_name',
+        message: '收件人姓名必填（B组）',
+      })
+    }
+
+    if (receiverPhone === '') {
+      errors.push({
+        rowIndex,
+        field: 'receiver_phone',
+        message: '收件人电话必填（B组）',
+      })
+    }
+
+    if (receiverAddress === '') {
+      errors.push({
+        rowIndex,
+        field: 'receiver_address',
+        message: '收件人地址必填（B组）',
+      })
+    }
   }
-  
-  if (row.receiver_phone && !validatePhone(String(row.receiver_phone))) {
+
+  if (receiverPhone !== '' && !validatePhone(receiverPhone)) {
     errors.push({
       rowIndex,
       field: 'receiver_phone',
       message: '电话格式错误',
-    });
+    })
   }
-  
-  if (row.weight !== undefined) {
-    const weight = parseFloat(String(row.weight));
-    if (isNaN(weight) || weight <= 0) {
+
+  if (row.sku_quantity !== undefined && row.sku_quantity !== null) {
+    const quantity = parseFloat(String(row.sku_quantity))
+    if (Number.isNaN(quantity) || quantity <= 0) {
       errors.push({
         rowIndex,
-        field: 'weight',
-        message: '重量必须为正数',
-      });
+        field: 'sku_quantity',
+        message: '数量必须为正数',
+      })
     }
   }
-  
-  if (row.quantity !== undefined) {
-    const quantity = parseInt(String(row.quantity), 10);
-    if (isNaN(quantity) || quantity <= 0) {
-      errors.push({
-        rowIndex,
-        field: 'quantity',
-        message: '件数必须为正整数',
-      });
-    }
-  }
-  
-  if (row.temperature && !TEMPERATURE_OPTIONS.includes(String(row.temperature))) {
-    errors.push({
-      rowIndex,
-      field: 'temperature',
-      message: `温层值必须是"常温"、"冷藏"或"冷冻"之一`,
-    });
-  }
-  
-  return errors;
+
+  return errors
 }
 
-function validatePhone(phone: string): boolean {
-  const phoneRegex = /^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
+export function validatePhone(phone: string): boolean {
+  const phoneRegex = /^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/
+  return phoneRegex.test(phone.replace(/\s/g, ''))
 }
 
 export function checkDuplicates(rows: PreviewRow[]): PreviewRow[] {
-  const result = [...rows];
-  const externalCodeMap = new Map<string, number[]>();
-  
+  const result: PreviewRow[] = rows.map((row): PreviewRow => ({
+    ...row,
+    isDuplicate: row.duplicateSource === 'database',
+    duplicateWith: row.duplicateSource === 'database' ? row.duplicateWith : undefined,
+    duplicateSource: row.duplicateSource === 'database' ? 'database' : undefined,
+  }))
+  const rowKeyMap = new Map<string, number[]>()
+
   result.forEach((row, index) => {
-    if (row.external_code) {
-      const code = row.external_code.trim();
-      if (code) {
-        if (!externalCodeMap.has(code)) {
-          externalCodeMap.set(code, []);
-        }
-        externalCodeMap.get(code)!.push(index);
-      }
+    const code = String(row.external_code || '').trim()
+    const skuCode = String(row.sku_code || '').trim()
+    if (!code || !skuCode) return
+
+    const key = `${code}::${skuCode}`
+    if (!rowKeyMap.has(key)) {
+      rowKeyMap.set(key, [])
     }
-  });
-  
-  externalCodeMap.forEach((indices) => {
-    if (indices.length > 1) {
-      indices.forEach((index) => {
-        const otherIndices = indices.filter((i) => i !== index);
-        result[index].isDuplicate = true;
-        result[index].duplicateWith = otherIndices[0];
-      });
-    }
-  });
-  
-  return result;
+    rowKeyMap.get(key)!.push(index)
+  })
+
+  rowKeyMap.forEach((indices) => {
+    if (indices.length <= 1) return
+
+    indices.forEach((index) => {
+      const otherIndex = indices.find((currentIndex) => currentIndex !== index)
+      if (otherIndex === undefined) return
+
+      result[index].isDuplicate = true
+      result[index].duplicateSource = 'batch'
+      result[index].duplicateWith = result[otherIndex].rowIndex
+    })
+  })
+
+  return result
 }
 
 export function validateAll(data: Partial<ShipmentData>[]): PreviewRow[] {
   const previewRows: PreviewRow[] = data.map((row, index) => {
-    const errors = validateRow(row, index + 2);
+    const rowIndex = index + 1
+    const errors = validateRow(row, rowIndex)
     return {
-      ...row as ShipmentData,
-      rowIndex: index + 2,
+      ...(row as ShipmentData),
+      rowIndex,
       errors,
       isDuplicate: false,
-    };
-  });
-  
-  return checkDuplicates(previewRows);
+    }
+  })
+
+  return checkDuplicates(previewRows)
 }
 
 export function hasErrors(rows: PreviewRow[]): boolean {
-  return rows.some((row) => row.errors.length > 0 || row.isDuplicate);
+  return rows.some((row) => row.errors.length > 0 || row.isDuplicate)
 }
 
 export function getAllErrors(rows: PreviewRow[]): ImportError[] {
-  const allErrors: ImportError[] = [];
+  const allErrors: ImportError[] = []
+
   rows.forEach((row) => {
-    allErrors.push(...row.errors);
+    allErrors.push(...row.errors)
+
     if (row.isDuplicate && row.duplicateWith !== undefined) {
       allErrors.push({
         rowIndex: row.rowIndex,
         field: 'external_code',
-        message: `与第 ${row.duplicateWith + 2} 行重复`,
-      });
+        message:
+          row.duplicateSource === 'database'
+            ? '外部编码与数据库已有运单重复'
+            : `与第 ${row.duplicateWith} 行外部编码重复`,
+      })
     }
-  });
-  return allErrors;
+  })
+
+  return allErrors
 }

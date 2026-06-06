@@ -1,4 +1,10 @@
-import { ShipmentData, ColumnMapping, TemplateMatch, REQUIRED_FIELDS } from '@/types';
+import { ShipmentData, TemplateMatch, REQUIRED_FIELDS } from '@/types';
+
+interface ColumnMapping {
+  templateName: string;
+  mappings: { [key: string]: string };
+  created_at: number;
+}
 const KNOWN_HEADERS: Record<string, string[]> = {
  external_code: ['外部编码', '订单号', '单号', '运单号', '订单编号', 'order_no', 'tracking_no'],
  sender_name: ['发件人姓名', '寄件人', '发货人', '发件人', '寄件人姓名', 'sender', 'sender_name'],

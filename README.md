@@ -1,141 +1,104 @@
-# 物流批量下单系统
+# 鲸天万能导入系统
 
-基于 Next.js + Supabase 的物流批量下单Web应用，支持多种Excel模板自动识别与导入。
+基于 Next.js 14 + Supabase 的智能多格式批量下单系统。当前版本按 `考试要求-文件版本.html` 重构为“先抽取文件结构，再选择/生成解析规则，再预览校验，最后提交入库”的规则引擎流程，UI 风格参考鲸天系统。
 
-## 功能特性
+## 核心能力
 
-### 模块一：模板管理与文件导入
-- 支持上传 Excel 文件（.xlsx / .xls），支持拖拽上传和点击上传
-- 支持多种不同模板格式的自动识别（不同列名、不同列序）
-- 模板记忆学习：自动记录列映射规则，下次上传相同结构模板时自动应用
-- 实时进度条显示导入进度
-- 支持1000条以上数据导入
-- 完善的错误处理
-
-### 模块二：数据预览与编辑
-- 类Excel表格形式展示数据
-- 表头固定、支持横向滚动、单元格点击可直接编辑
-- 行内错误实时校验：必填字段缺失、电话格式错误、重量/件数非正数等
-- 全部错误一次性展示
-- 外部编码重复检测
-- 支持删除行、新增空行操作
-- 支持导出Excel文件
-
-### 模块三：提交下单
-- 有错误的行不允许提交
-- 点击提交后显示上传进度条
-- 提交成功后数据持久化到数据库
-- 返回提交结果汇总
-
-### 模块四：已导入运单列表
-- 查看所有历史已导入的运单记录
-- 支持按外部编码、收件人姓名、提交时间进行筛选/搜索
-- 支持分页展示
+- 支持 Excel、Word、PDF 文件上传与结构抽取。
+- 支持标准表格、矩阵转置、卡片式、自由文本等规则解析。
+- 支持规则中心管理：新建、编辑、复制、删除规则，并提供常用配置可视化编辑 + JSON 高级编辑。
+- 支持预览页行内编辑、增删行、导出 Excel、必填/电话/数量校验。
+- 支持外部编码重复校验：本批次重复 + 数据库已有运单重复。
+- 支持提交失败原因展示，重试时会重新显示提交进度动画。
 
 ## 技术栈
 
-- **前端框架**: Next.js 14
-- **UI样式**: Tailwind CSS 3
-- **图标库**: Lucide React
-- **Excel处理**: SheetJS (xlsx)
-- **数据库**: Supabase
-- **部署**: Vercel
+- Next.js 14 App Router
+- TypeScript
+- Tailwind CSS
+- SheetJS / pdf-parse / pdf2json / mammoth
+- Supabase
 
-## 快速开始
-
-### 环境要求
-
-- Node.js >= 18.0.0
-- npm >= 9.0.0
-
-### 安装依赖
+## 本地运行
 
 ```bash
 npm install
-```
-
-### 开发模式
-
-```bash
 npm run dev
 ```
 
-访问 http://localhost:3000 查看应用。
+默认访问：
 
-### 构建生产版本
-
-```bash
-npm run build
+```text
+http://localhost:3000
 ```
 
-### 启动生产服务器
+如需指定端口：
 
 ```bash
-npm run start
+npm run dev -- -p 3001
 ```
 
-## 环境变量配置
+## 环境变量
 
-在 `.env.local` 文件中配置以下环境变量：
+在 `.env.local` 中配置：
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## 数据库表结构
+如启用 AI 规则生成，可继续配置：
 
-需要在 Supabase 中创建 `shipments` 表：
-
-```sql
-CREATE TABLE shipments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  external_code TEXT,
-  sender_name TEXT NOT NULL,
-  sender_phone TEXT NOT NULL,
-  sender_address TEXT NOT NULL,
-  receiver_name TEXT NOT NULL,
-  receiver_phone TEXT NOT NULL,
-  receiver_address TEXT NOT NULL,
-  weight NUMERIC NOT NULL,
-  quantity INTEGER NOT NULL,
-  temperature TEXT NOT NULL,
-  remark TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
+```env
+LLM_API_KEY=your_llm_api_key
+LLM_BASE_URL=your_llm_base_url
+LLM_MODEL=your_model
 ```
 
-## 部署到 Vercel
+不要把真实密钥提交到仓库。
 
-1. 安装 Vercel CLI：
+## 数据库
+
+初始化 SQL 位于：
+
+```text
+supabase/init.sql
+```
+
+主要业务表为 `shipments`。系统会优先按 V2 字段写入；如历史库仍是 V1 字段，后端保留兼容写入逻辑。
+
+## 规则与样本验证
+
+内置规则文件：
+
+```text
+saved_rules.json
+```
+
+有样本文件时，可启动本地服务后运行：
+
 ```bash
-npm install -g vercel
+node test-parse-all.mjs
 ```
 
-2. 登录 Vercel：
+该脚本会对样本文件尝试同类型规则，选择有效解析结果最多的规则。
+
+## 常用检查
+
 ```bash
-vercel login
+npx tsc --noEmit
+npm run build
 ```
 
-3. 部署项目：
-```bash
-vercel
-```
+在当前 Codex 沙箱中，`next build` 可能因系统权限出现 `spawn EPERM`，需要提升权限执行；正常本机终端通常直接运行即可。
 
-按照提示完成部署配置，确保在 Vercel 中配置好环境变量。
+## 主要目录
 
-## 导入字段说明
-
-| 字段名 | 说明 | 必填 |
-|--------|------|------|
-| 外部编码 | 外部系统订单唯一编号，用于去重 | 否 |
-| 发件人姓名 | 寄件人姓名 | 是 |
-| 发件人电话 | 寄件人联系方式 | 是 |
-| 发件人地址 | 寄件人完整地址 | 是 |
-| 收件人姓名 | 收货人姓名 | 是 |
-| 收件人电话 | 收货人联系方式 | 是 |
-| 收件人地址 | 收货人完整地址 | 是 |
-| 重量(kg) | 货物重量，必须为正数 | 是 |
-| 件数 | 包裹数量，必须为正整数 | 是 |
-| 温层 | 常温/冷藏/冷冻 | 是 |
-| 备注 | 附加说明 | 否 |
+- `src/app/page.tsx`：主工作台、上传/规则/预览/提交流程。
+- `src/components/RuleCenter.tsx`：规则中心页面。
+- `src/components/DataPreview.tsx`：解析结果预览与编辑。
+- `src/components/ResultModal.tsx`：提交结果与失败原因。
+- `src/utils/ruleEngine.ts`：规则解析引擎。
+- `src/utils/validator.ts`：预览校验与重复检测。
+- `src/app/api/shipments/route.ts`：运单查询、重复校验、提交入库 API。
+- `src/app/api/rules/route.ts`：规则 CRUD API。
