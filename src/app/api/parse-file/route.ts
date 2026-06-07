@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         
         return NextResponse.json({
           type: 'excel',
+          fileName: filename,
           sheets
         })
       } catch (excelError) {
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
         
         return NextResponse.json({
           type: 'word',
+          fileName: filename,
           lines
         })
       } catch (wordError) {
@@ -145,6 +147,7 @@ export async function POST(request: NextRequest) {
         
         return NextResponse.json({
           type: 'pdf',
+          fileName: filename,
           lines
         })
       } catch (pdfError) {

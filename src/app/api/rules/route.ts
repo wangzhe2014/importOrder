@@ -63,7 +63,10 @@ export async function GET() {
   }
   
   // 2. Always merge with local rules (for fallback consistency)
-  const localRules = readLocalRules()
+  const localRules = readLocalRules().map(rule => ({
+    ...rule,
+    is_builtin: String(rule.id || '').startsWith('rule-'),
+  }))
   
   // Merge: Supabase rules first, then local rules (deduped by name)
   const allRules = [...supabaseRules]
@@ -168,6 +171,11 @@ export async function DELETE(request: NextRequest) {
     
     if (!name) {
       return NextResponse.json({ error: '必须指定要删除的规则名称' }, { status: 400 })
+    }
+
+    const localRule = readLocalRules().find(rule => rule.name === name)
+    if (localRule && String(localRule.id || '').startsWith('rule-')) {
+      return NextResponse.json({ error: '内置规则不允许删除' }, { status: 403 })
     }
     
     try {

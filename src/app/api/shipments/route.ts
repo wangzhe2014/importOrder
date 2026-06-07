@@ -57,6 +57,10 @@ export async function GET(request: NextRequest) {
         total: 0,
         page: 1,
         limit: 10,
+        summary: {
+          storeCount: 0,
+          skuQuantity: 0,
+        },
         warning: 'Supabase 未配置，无法读取历史运单'
       })
     }
@@ -144,35 +148,39 @@ export async function GET(request: NextRequest) {
     const searchStore = searchParams.get('store_name')
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
+
+    const applyListFilters = (queryBuilder: any) => {
+      queryBuilder = queryBuilder.or('external_code.is.null,external_code.neq.SYSTEM_RULE_CONFIG')
+
+      if (searchCode) {
+        queryBuilder = queryBuilder.ilike('external_code', `%${searchCode}%`)
+      }
+
+      if (searchName) {
+        queryBuilder = queryBuilder.ilike('receiver_name', `%${searchName}%`)
+      }
+
+      if (searchStore) {
+        queryBuilder = queryBuilder.ilike('store_name', `%${searchStore}%`)
+      }
+
+      if (startDate) {
+        queryBuilder = queryBuilder.gte('created_at', startDate)
+      }
+
+      if (endDate) {
+        queryBuilder = queryBuilder.lte('created_at', endDate)
+      }
+
+      return queryBuilder
+    }
     
     let query = supabase
       .from('shipments')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
-      
-    // Exclude system rules from the shipments list
-    query = query.or('external_code.is.null,external_code.neq.SYSTEM_RULE_CONFIG')
-      
-    if (searchCode) {
-      query = query.ilike('external_code', `%${searchCode}%`)
-    }
-    
-    if (searchName) {
-      query = query.ilike('receiver_name', `%${searchName}%`)
-    }
-    
-    if (searchStore) {
-      query = query.ilike('store_name', `%${searchStore}%`)
-    }
-    
-    if (startDate) {
-      query = query.gte('created_at', startDate)
-    }
-    
-    if (endDate) {
-      query = query.lte('created_at', endDate)
-    }
+    query = applyListFilters(query)
     
     const { data, count, error } = await query
     
@@ -181,12 +189,14 @@ export async function GET(request: NextRequest) {
     }
     
     const formattedData = (data || []).map(mapRowToV2)
+    const summary = await loadShipmentSummary(applyListFilters, count || 0)
     
     return NextResponse.json({
       data: formattedData,
       total: count || 0,
       page,
-      limit
+      limit,
+      summary
     })
     
   } catch (error) {
@@ -194,6 +204,47 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       error: `查询失败: ${(error as Error).message || '未知错误'}` 
     }, { status: 500 })
+  }
+}
+
+async function loadShipmentSummary(
+  applyListFilters: (queryBuilder: any) => any,
+  total: number
+): Promise<{ storeCount: number; skuQuantity: number }> {
+  if (total <= 0) {
+    return { storeCount: 0, skuQuantity: 0 }
+  }
+
+  const storeNames = new Set<string>()
+  let skuQuantity = 0
+  const chunkSize = 1000
+
+  for (let start = 0; start < total; start += chunkSize) {
+    const end = Math.min(start + chunkSize - 1, total - 1)
+    let summaryQuery = supabase
+      .from('shipments')
+      .select('*')
+      .range(start, end)
+
+    summaryQuery = applyListFilters(summaryQuery)
+    const { data, error } = await summaryQuery
+
+    if (error) {
+      throw error
+    }
+
+    ;(data || []).map(mapRowToV2).forEach((row) => {
+      const storeName = String(row.store_name || '').trim()
+      if (storeName) {
+        storeNames.add(storeName)
+      }
+      skuQuantity += Number(row.sku_quantity || 0) || 0
+    })
+  }
+
+  return {
+    storeCount: storeNames.size,
+    skuQuantity,
   }
 }
 

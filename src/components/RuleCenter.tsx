@@ -1,22 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import type { ComponentType, ReactNode } from 'react'
-import { Copy, Edit3, FileStack, Layers3, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
-import { FIELD_DISPLAY_NAMES, ParsingConfig, ParsingRule, ShipmentData } from '@/types'
-
-const VISUAL_MAPPING_FIELDS: (keyof ShipmentData)[] = [
-  'external_code',
-  'store_name',
-  'receiver_name',
-  'receiver_phone',
-  'receiver_address',
-  'sku_code',
-  'sku_name',
-  'sku_quantity',
-  'sku_spec',
-  'remark',
-]
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Copy, Edit3, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { ParsingRule } from '@/types'
+import { RuleConfigForm } from '@/components/RuleConfigForm'
+import { normalizeRuleConfig } from '@/utils/ruleConfig'
 
 const STRUCTURE_TYPE_LABELS: Record<ParsingRule['structure_type'], string> = {
   standard: '标准表格',
@@ -40,18 +29,6 @@ export function RuleCenter() {
   const [deleteRuleName, setDeleteRuleName] = useState<string | null>(null)
   const [selectedRule, setSelectedRule] = useState<ParsingRule | null>(null)
   const [newRule, setNewRule] = useState<ParsingRule>(createEmptyRule())
-
-  const summary = useMemo(() => {
-    const excelCount = rules.filter(rule => rule.file_type === 'excel').length
-    const textCount = rules.filter(rule => rule.file_type === 'word' || rule.file_type === 'pdf').length
-    const complexCount = rules.filter(rule => rule.structure_type !== 'standard').length
-    return {
-      total: rules.length,
-      excelCount,
-      textCount,
-      complexCount,
-    }
-  }, [rules])
 
   useEffect(() => {
     fetchRules()
@@ -82,7 +59,7 @@ export function RuleCenter() {
       const response = await fetch('/api/rules', {
         method: rule.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rule),
+        body: JSON.stringify({ ...rule, config: normalizeRuleConfig(rule.config) }),
       })
 
       const result = await response.json()
@@ -170,14 +147,6 @@ export function RuleCenter() {
           {errorMessage}
         </div>
       )}
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <RuleSummaryCard icon={FileStack} label="规则总数" value={summary.total} suffix="条" />
-        <RuleSummaryCard icon={Layers3} label="Excel 规则" value={summary.excelCount} suffix="条" />
-        <RuleSummaryCard icon={Sparkles} label="Word/PDF 规则" value={summary.textCount} suffix="条" />
-        <RuleSummaryCard icon={Edit3} label="复杂结构规则" value={summary.complexCount} suffix="条" />
-      </div>
-
       {loading ? (
         <div className="jt-panel flex items-center justify-center py-12">
           <RefreshCw className="h-8 w-8 animate-spin text-[#0fc6c2]" />
@@ -194,7 +163,9 @@ export function RuleCenter() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rules.map((rule) => (
+          {rules.map((rule) => {
+            const isBuiltIn = Boolean(rule.is_builtin)
+            return (
             <div key={rule.id || rule.name} className="jt-card p-5">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -212,6 +183,11 @@ export function RuleCenter() {
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
                     {FILE_TYPE_LABELS[rule.file_type]}
                   </span>
+                  {isBuiltIn && (
+                    <span className="rounded-full bg-[#fff7e6] px-2 py-1 text-xs font-medium text-[#d46b08]">
+                      内置
+                    </span>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <IconButton title="复制规则" onClick={() => handleCopyRule(rule)}>
@@ -220,9 +196,11 @@ export function RuleCenter() {
                   <IconButton title="编辑规则" onClick={() => handleOpenEditModal(rule)}>
                     <Edit3 className="h-4 w-4" />
                   </IconButton>
-                  <IconButton title="删除规则" danger onClick={() => setDeleteRuleName(rule.name)}>
-                    <Trash2 className="h-4 w-4" />
-                  </IconButton>
+                  {!isBuiltIn && (
+                    <IconButton title="删除规则" danger onClick={() => setDeleteRuleName(rule.name)}>
+                      <Trash2 className="h-4 w-4" />
+                    </IconButton>
+                  )}
                 </div>
               </div>
 
@@ -238,7 +216,8 @@ export function RuleCenter() {
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -274,6 +253,15 @@ export function RuleCenter() {
           onConfirm={() => handleDeleteRule(deleteRuleName)}
         />
       )}
+
+      <button
+        onClick={fetchRules}
+        disabled={loading}
+        className="fixed bottom-6 right-6 z-40 grid h-12 w-12 place-items-center rounded-full bg-[#0fc6c2] text-white shadow-xl shadow-cyan-500/30 transition hover:bg-[#0bada9] disabled:cursor-not-allowed disabled:opacity-70"
+        title="刷新规则"
+      >
+        <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+      </button>
     </div>
   )
 }
@@ -293,24 +281,7 @@ function RuleEditorModal({
   onSave: () => void
   saveDisabled?: boolean
 }) {
-  const config = rule.config || {}
-  const updateConfig = (patch: Partial<ParsingConfig>) => {
-    onChange({ ...rule, config: { ...config, ...patch } })
-  }
-  const updateOptionalNumber = (key: keyof ParsingConfig, value: string) => {
-    updateConfig({ [key]: value === '' ? undefined : Number(value) } as Partial<ParsingConfig>)
-  }
-  const updateColumnMapping = (field: keyof ShipmentData, value: string) => {
-    const columnMappings = { ...(config.column_mappings || {}) }
-
-    if (value.trim()) {
-      columnMappings[field] = value
-    } else {
-      delete columnMappings[field]
-    }
-
-    updateConfig({ column_mappings: columnMappings })
-  }
+  const [configError, setConfigError] = useState<string | null>(null)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 md:p-6">
@@ -377,86 +348,11 @@ function RuleEditorModal({
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#d0e8e8] bg-[#f7ffff] p-4">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-[#0b6e6e]">常用配置</p>
-                <p className="text-xs text-[#667085]">优先用表单配置，复杂场景可继续编辑下方 JSON。</p>
-              </div>
-              {rule.file_type === 'excel' && (
-                <label className="flex items-center gap-2 text-sm text-[#4e5969]">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(config.merge_sheets)}
-                    onChange={(event) => updateConfig({ merge_sheets: event.target.checked })}
-                    className="rounded border-gray-300 text-[#0fc6c2] focus:ring-[#0fc6c2]"
-                  />
-                  合并多个 Sheet
-                </label>
-              )}
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <RuleNumberInput
-                label="表头行号"
-                value={config.header_row_index}
-                placeholder="如 0"
-                onChange={(value) => updateOptionalNumber('header_row_index', value)}
-              />
-              <RuleNumberInput
-                label="数据起始行号"
-                value={config.data_start_row_index}
-                placeholder="如 1"
-                onChange={(value) => updateOptionalNumber('data_start_row_index', value)}
-              />
-              <label className="text-sm text-[#4e5969]">
-                结束标记
-                <input
-                  type="text"
-                  value={config.data_end_marker || ''}
-                  onChange={(event) => updateConfig({ data_end_marker: event.target.value || undefined })}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
-                  placeholder="如 合计"
-                />
-              </label>
-            </div>
-
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-medium text-[#4e5969]">字段映射</p>
-              <div className="grid gap-3 md:grid-cols-2">
-                {VISUAL_MAPPING_FIELDS.map((field) => (
-                  <label key={field} className="text-sm text-[#4e5969]">
-                    {FIELD_DISPLAY_NAMES[field] || field}
-                    <input
-                      type="text"
-                      value={config.column_mappings?.[field] || ''}
-                      onChange={(event) => updateColumnMapping(field, event.target.value)}
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
-                      placeholder="源文件列名"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">规则配置（JSON）</label>
-            <textarea
-              value={JSON.stringify(rule.config, null, 2)}
-              onChange={(event) => {
-                try {
-                  const nextConfig = JSON.parse(event.target.value)
-                  onChange({ ...rule, config: nextConfig })
-                } catch {
-                  // 输入中的 JSON 可能暂时不合法，保留上一次有效配置。
-                }
-              }}
-              rows={10}
-              className="max-h-[45vh] min-h-56 w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
-              placeholder="{}"
-            />
-          </div>
+          <RuleConfigForm
+            rule={rule}
+            onChange={(nextConfig) => onChange({ ...rule, config: normalizeRuleConfig(nextConfig) })}
+            onValidityChange={(valid, message) => setConfigError(valid ? null : (message || '规则配置格式不正确'))}
+          />
         </div>
 
         <div className="flex justify-end gap-3 border-t border-gray-100 px-5 py-4 md:px-6">
@@ -468,7 +364,7 @@ function RuleEditorModal({
           </button>
           <button
             onClick={onSave}
-            disabled={saveDisabled}
+            disabled={saveDisabled || !!configError}
             className="jt-btn-primary px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             保存规则
@@ -502,31 +398,6 @@ function IconButton({
     >
       {children}
     </button>
-  )
-}
-
-function RuleSummaryCard({
-  icon: Icon,
-  label,
-  value,
-  suffix,
-}: {
-  icon: ComponentType<{ className?: string }>
-  label: string
-  value: number
-  suffix: string
-}) {
-  return (
-    <div className="rounded-xl border border-[#d0e8e8] bg-[#f7ffff] p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-[#667085]">{label}</span>
-        <Icon className="h-4 w-4 text-[#0fc6c2]" />
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-[#1d2129]">
-        {value}
-        <span className="ml-1 text-sm font-normal text-[#86909c]">{suffix}</span>
-      </div>
-    </div>
   )
 }
 
@@ -565,32 +436,6 @@ function ConfirmDeleteDialog({
         </div>
       </div>
     </div>
-  )
-}
-
-function RuleNumberInput({
-  label,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string
-  value?: number
-  placeholder: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <label className="text-sm text-[#4e5969]">
-      {label}
-      <input
-        type="number"
-        min={0}
-        value={value ?? ''}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
-        placeholder={placeholder}
-      />
-    </label>
   )
 }
 

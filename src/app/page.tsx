@@ -30,6 +30,7 @@ import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 type AppState = 'upload' | 'select-rule' | 'preview' | 'result' | 'shipments'
 type ParsedFileData = {
   type: 'excel' | 'word' | 'pdf'
+  fileName?: string
   sheets?: { name: string; data: string[][] }[]
   lines?: string[]
 }
@@ -610,25 +611,27 @@ export default function Home() {
         </header>
 
         <div className="space-y-6 p-4 md:p-8">
-          <section className="jt-hero-panel overflow-hidden p-5 md:p-6">
-            <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-              <div>
-                <p className="jt-eyebrow">智能多格式批量下单系统</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-normal text-[#101828] md:text-3xl">
-                  用规则引擎接住复杂文件，用 AI 加速规则配置
-                </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-[#667085]">
-                  Excel、Word、PDF 均先抽取原始结构，再由用户手动选择规则或生成新规则，确保可解释、可复用、可验收。
-                </p>
+          {activeTab === 'upload' && (
+            <section className="jt-hero-panel overflow-hidden p-5 md:p-6">
+              <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+                <div>
+                  <p className="jt-eyebrow">智能多格式批量下单系统</p>
+                  <h1 className="mt-2 text-2xl font-semibold tracking-normal text-[#101828] md:text-3xl">
+                    用规则引擎接住复杂文件，用 AI 加速规则配置
+                  </h1>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#667085]">
+                    Excel、Word、PDF 均先抽取原始结构，再由用户手动选择规则或生成新规则，确保可解释、可复用、可验收。
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <MetricCard icon={Layers3} label="规则数量" value={rules.length} />
+                  <MetricCard icon={FileStack} label="原始行数" value={parsedSourceCount} />
+                  <MetricCard icon={PackageCheck} label="预览明细" value={previewRows.length} />
+                  <MetricCard icon={ShieldCheck} label="待修正错误" value={errorCount} tone={errorCount > 0 ? 'danger' : 'normal'} />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <MetricCard icon={Layers3} label="规则数量" value={rules.length} />
-                <MetricCard icon={FileStack} label="原始行数" value={parsedSourceCount} />
-                <MetricCard icon={PackageCheck} label="预览明细" value={previewRows.length} />
-                <MetricCard icon={ShieldCheck} label="待修正错误" value={errorCount} tone={errorCount > 0 ? 'danger' : 'normal'} />
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {activeTab === 'upload' && (
             <section className="jt-panel p-4 md:p-5">

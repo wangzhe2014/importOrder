@@ -31,6 +31,7 @@ export interface ParsingRule {
   structure_type: 'standard' | 'matrix' | 'card' | 'free_text'
   config: ParsingConfig
   created_at?: number
+  is_builtin?: boolean
 }
 
 export interface ParsingConfig {

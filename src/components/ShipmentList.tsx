@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Hash,
   Package,
-  PackageCheck,
   RotateCcw,
   Search,
   Store,
@@ -20,6 +18,10 @@ interface ShipmentListResponse {
   total: number
   page: number
   limit: number
+  summary?: {
+    storeCount: number
+    skuQuantity: number
+  }
 }
 
 const PAGE_SIZE = 10
@@ -27,6 +29,7 @@ const PAGE_SIZE = 10
 export function ShipmentList() {
   const [data, setData] = useState<ShipmentData[]>([])
   const [total, setTotal] = useState(0)
+  const [summary, setSummary] = useState({ storeCount: 0, skuQuantity: 0 })
   const [page, setPage] = useState(1)
   const [jumpPage, setJumpPage] = useState('')
   const [filters, setFilters] = useState({
@@ -61,27 +64,16 @@ export function ShipmentList() {
 
       setData(Array.isArray(result.data) ? result.data : [])
       setTotal(result.total || 0)
+      setSummary(result.summary || { storeCount: 0, skuQuantity: 0 })
     } catch (error) {
       console.error('加载运单列表失败:', error)
       setData([])
       setTotal(0)
+      setSummary({ storeCount: 0, skuQuantity: 0 })
     } finally {
       setLoading(false)
     }
   }
-
-  const summary = useMemo(() => {
-    const uniqueOrders = new Set(data.map(row => row.external_code).filter(Boolean)).size
-    const uniqueStores = new Set(data.map(row => row.store_name || row.receiver_name).filter(Boolean)).size
-    const skuQuantity = data.reduce((sum, row) => sum + Number(row.sku_quantity || 0), 0)
-
-    return {
-      currentRows: data.length,
-      uniqueOrders,
-      uniqueStores,
-      skuQuantity,
-    }
-  }, [data])
 
   const pageItems = useMemo(() => buildPageItems(page, totalPages), [page, totalPages])
 
@@ -125,16 +117,11 @@ export function ShipmentList() {
             </div>
             <p className="mt-1 text-sm text-gray-500">查看已提交入库的运单明细，支持按单号、门店和日期筛选。</p>
           </div>
-          <div className="text-sm text-gray-500">
-            共 <span className="font-semibold text-[#1d2129]">{total}</span> 条记录
-          </div>
         </div>
 
-        <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard icon={PackageCheck} label="当前页明细" value={summary.currentRows} suffix="条" />
-          <SummaryCard icon={Hash} label="当前页单号" value={summary.uniqueOrders} suffix="个" />
-          <SummaryCard icon={Store} label="当前页门店/收件方" value={summary.uniqueStores} suffix="个" />
-          <SummaryCard icon={Package} label="当前页 SKU 数量" value={summary.skuQuantity} suffix="件" />
+        <div className="mb-5 grid gap-3 md:grid-cols-2">
+          <SummaryCard icon={Store} label="收货门店" value={summary.storeCount} suffix="个" />
+          <SummaryCard icon={Package} label="SKU 数量" value={summary.skuQuantity} suffix="件" />
         </div>
 
         <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-7">
@@ -318,18 +305,45 @@ function DateField({
   value: string
   onChange: (value: string) => void
 }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const openDatePicker = () => {
+    const input = inputRef.current
+    if (!input) return
+
+    if (typeof input.showPicker === 'function') {
+      input.showPicker()
+      return
+    }
+
+    input.focus()
+  }
+
   return (
-    <div className="relative cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#0fc6c2]">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={openDatePicker}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          openDatePicker()
+        }
+      }}
+      className="relative cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#0fc6c2]"
+    >
       <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
       <span className={`block pl-7 ${value ? 'text-gray-800' : 'text-gray-400'}`}>
         {value || label}
       </span>
       <input
+        ref={inputRef}
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
         aria-label={label}
+        tabIndex={-1}
       />
     </div>
   )

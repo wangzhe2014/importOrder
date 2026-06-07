@@ -1,12 +1,25 @@
 // src/app/api/generate-rule/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
+import fs from 'node:fs'
+import path from 'node:path'
+import * as XLSX from 'xlsx'
 import { ParsingConfig, ParsingRule, ShipmentData } from '@/types'
+import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
+import { validateRow } from '@/utils/validator'
 
 type ParsedFilePayload = {
   type: 'excel' | 'word' | 'pdf'
+  fileName?: string
   sheets?: { name: string; data: string[][] }[]
   lines?: string[]
+}
+
+type ReferenceRuleMatch = {
+  rule: ParsingRule
+  totalRows: number
+  validRows: number
+  score: number
 }
 
 type AiMetadata = Record<string, { status: 'confident' | 'guessed' | 'not_found'; reason: string }>
@@ -82,6 +95,7 @@ async function tryGenerateWithLlm(payload: ParsedFilePayload) {
   const baseUrl = process.env.LLM_BASE_URL || 'https://api.deepseek.com/v1'
   const model = process.env.LLM_MODEL || 'deepseek-chat'
   const sample = buildSample(payload)
+  const demoContext = await buildDemoReferenceContext(payload.type)
 
   const systemPrompt = `你是物流导入系统的解析规则专家。请根据样本生成纯 JSON 规则，不要输出 Markdown。
 
@@ -123,7 +137,15 @@ free_text_receiver_patterns, free_text_sequence_item。`
         model,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `文件类型：${payload.type}\n样本数据：\n${sample}` },
+          {
+            role: 'user',
+            content: [
+              `当前文件名：${payload.fileName || 'unknown'}`,
+              `文件类型：${payload.type}`,
+              `当前上传样本数据：\n${sample}`,
+              `demos 参考样本摘要：\n${demoContext || '无同类型 demos 参考样本'}`,
+            ].join('\n\n'),
+          },
         ],
         temperature: 0.1,
         response_format: { type: 'json_object' },
@@ -149,6 +171,10 @@ free_text_receiver_patterns, free_text_sequence_item。`
       config: normalizeParsingConfig(ruleJson.config),
     }
 
+    if (!isRuleUsableForPayload(payload, rule)) {
+      throw new Error('LLM 生成的规则无法解析当前样本，回退到本地样本规则识别')
+    }
+
     return {
       rule,
       ai_metadata: ruleJson.ai_metadata || {},
@@ -158,6 +184,192 @@ free_text_receiver_patterns, free_text_sequence_item。`
     console.error('LLM rule generation failed, fallback to heuristic:', error)
     return null
   }
+}
+
+async function tryGenerateFromReferenceRules(payload: ParsedFilePayload) {
+  const matches = evaluateReferenceRules(payload)
+  const bestMatch = matches[0]
+
+  if (!bestMatch || bestMatch.totalRows === 0 || bestMatch.validRows === 0 || bestMatch.score < 8) {
+    return null
+  }
+
+  const rule: ParsingRule = {
+    ...bestMatch.rule,
+    id: undefined,
+    name: `AI 推荐：${bestMatch.rule.name}`,
+    description: [
+      bestMatch.rule.description || '',
+      `根据 demos/已保存规则试跑命中：解析 ${bestMatch.totalRows} 行，有效 ${bestMatch.validRows} 行。`,
+    ].filter(Boolean).join('\n'),
+    file_type: payload.type,
+    config: normalizeParsingConfig(bestMatch.rule.config),
+  }
+
+  return {
+    rule,
+    ai_metadata: buildMetadataFromRuleConfig(rule.config),
+    hit_cache: true,
+    warning: '已根据 demos 样本规则库匹配到可用规则，可直接微调或试解析。',
+  }
+}
+
+function evaluateReferenceRules(payload: ParsedFilePayload): ReferenceRuleMatch[] {
+  const rules = loadSavedRules().filter(rule => rule.file_type === payload.type)
+
+  return rules
+    .map((rule) => {
+      try {
+        const normalizedRule = { ...rule, config: normalizeParsingConfig(rule.config) }
+        const rows = payload.type === 'excel'
+          ? parseExcelWithRule(payload.sheets || [], normalizedRule)
+          : parseTextWithRule(payload.lines || [], normalizedRule)
+        const validRows = rows.filter((row, index) => validateRow(row, index + 1).length === 0).length
+        const totalRows = rows.length
+        const fieldScore = countMappedFields(normalizedRule.config)
+        const score = validRows * 10 + Math.min(totalRows, 20) + fieldScore
+        return { rule: normalizedRule, totalRows, validRows, score }
+      } catch {
+        return { rule, totalRows: 0, validRows: 0, score: 0 }
+      }
+    })
+    .filter(match => match.totalRows > 0)
+    .sort((left, right) => right.score - left.score)
+}
+
+function isRuleUsableForPayload(payload: ParsedFilePayload, rule: ParsingRule) {
+  try {
+    const normalizedRule = { ...rule, config: normalizeParsingConfig(rule.config) }
+    const rows = payload.type === 'excel'
+      ? parseExcelWithRule(payload.sheets || [], normalizedRule)
+      : parseTextWithRule(payload.lines || [], normalizedRule)
+
+    if (rows.length === 0) return false
+
+    const validRows = rows.filter((row, index) => validateRow(row, index + 1).length === 0).length
+    return validRows > 0
+  } catch (error) {
+    console.warn('Generated rule validation failed:', error)
+    return false
+  }
+}
+
+function loadSavedRules(): ParsingRule[] {
+  try {
+    const filePath = path.join(process.cwd(), 'saved_rules.json')
+    const content = fs.readFileSync(filePath, 'utf8')
+    const rules = JSON.parse(content)
+    return Array.isArray(rules) ? rules : []
+  } catch (error) {
+    console.warn('Failed to load saved_rules.json as AI references:', error)
+    return []
+  }
+}
+
+function countMappedFields(config: ParsingConfig) {
+  const mappedFields = new Set<string>()
+  Object.keys(config.column_mappings || {}).forEach(field => mappedFields.add(field))
+  Object.keys(config.free_text_receiver_patterns || {}).forEach(field => mappedFields.add(field))
+  Object.keys(config.default_values || {}).forEach(field => mappedFields.add(field))
+  ;(config.meta_extractors || []).forEach(extractor => mappedFields.add(String(extractor.field)))
+  return mappedFields.size
+}
+
+function buildMetadataFromRuleConfig(config: ParsingConfig): AiMetadata {
+  const metadata: AiMetadata = {}
+  const mappedFields = new Set<string>()
+
+  Object.keys(config.column_mappings || {}).forEach(field => mappedFields.add(field))
+  Object.keys(config.free_text_receiver_patterns || {}).forEach(field => mappedFields.add(field))
+  Object.keys(config.default_values || {}).forEach(field => mappedFields.add(field))
+  ;(config.meta_extractors || []).forEach(extractor => mappedFields.add(String(extractor.field)))
+
+  TARGET_FIELDS.forEach((field) => {
+    metadata[field] = mappedFields.has(field)
+      ? { status: 'confident', reason: '根据 demos/已保存参考规则映射得到。' }
+      : { status: 'not_found', reason: '参考规则中未映射该字段，请在表单中补充。' }
+  })
+
+  return metadata
+}
+
+async function buildDemoReferenceContext(type: ParsedFilePayload['type']) {
+  try {
+    const demosDir = path.join(process.cwd(), 'demos')
+    if (!fs.existsSync(demosDir)) return ''
+
+    const files = fs.readdirSync(demosDir)
+      .filter(file => isDemoFileOfType(file, type))
+      .slice(0, 6)
+
+    const summaries = await Promise.all(files.map(file => summarizeDemoFile(path.join(demosDir, file), file, type)))
+    return summaries.filter(Boolean).join('\n\n')
+  } catch (error) {
+    console.warn('Failed to build demos reference context:', error)
+    return ''
+  }
+}
+
+function isDemoFileOfType(fileName: string, type: ParsedFilePayload['type']) {
+  const ext = path.extname(fileName).toLowerCase()
+  if (type === 'excel') return ext === '.xlsx' || ext === '.xls'
+  if (type === 'word') return ext === '.docx'
+  if (type === 'pdf') return ext === '.pdf'
+  return false
+}
+
+async function summarizeDemoFile(filePath: string, fileName: string, type: ParsedFilePayload['type']) {
+  if (type === 'excel') {
+    const workbook = XLSX.readFile(filePath)
+    const sheets = workbook.SheetNames.slice(0, 2).map((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName]
+      const data = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        raw: false,
+        blankrows: true,
+      }) as string[][]
+      return {
+        name: sheetName,
+        data: data.slice(0, 12).map(row => (row || []).map(cell => String(cell || '').trim())),
+      }
+    })
+    return JSON.stringify({ fileName, type, sheets })
+  }
+
+  if (type === 'pdf') {
+    const lines = await extractPdfLines(filePath)
+    return JSON.stringify({ fileName, type, lines: lines.slice(0, 80) })
+  }
+
+  return JSON.stringify({ fileName, type })
+}
+
+async function extractPdfLines(filePath: string) {
+  const pdf2jsonModule = await import('pdf2json')
+  const PDFParser = pdf2jsonModule.default || pdf2jsonModule.PDFParser
+  const pdfParser = new PDFParser()
+  const buffer = fs.readFileSync(filePath)
+
+  const text = await new Promise<string>((resolve, reject) => {
+    pdfParser.on('pdfParser_dataError', reject)
+    pdfParser.on('pdfParser_dataReady', (pdfData) => {
+      let extractedText = ''
+      for (const page of pdfData.Pages || []) {
+        for (const textLine of page.Texts || []) {
+          let lineText = ''
+          for (const textItem of textLine.R || []) {
+            lineText += textItem.T
+          }
+          extractedText += `${decodeURIComponent(lineText)}\n`
+        }
+        extractedText += '\n'
+      }
+      resolve(extractedText)
+    })
+    pdfParser.parseBuffer(buffer)
+  })
+
+  return text.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
 }
 
 function generateHeuristicRule(payload: ParsedFilePayload) {
@@ -223,7 +435,7 @@ function generateExcelRule(sheets: { name: string; data: string[][] }[]) {
         min_filled_cells: 2,
       },
     }
-    return { rule, ai_metadata: metadata, hit_cache: false }
+    return { rule, ai_metadata: buildMetadataFromRuleConfig(rule.config), hit_cache: false }
   }
 
   const matrixInfo = detectMatrix(headers)
@@ -246,7 +458,7 @@ function generateExcelRule(sheets: { name: string; data: string[][] }[]) {
         min_filled_cells: 2,
       },
     }
-    return { rule, ai_metadata: metadata, hit_cache: false }
+    return { rule, ai_metadata: buildMetadataFromRuleConfig(rule.config), hit_cache: false }
   }
 
   const rule: ParsingRule = {
@@ -256,7 +468,7 @@ function generateExcelRule(sheets: { name: string; data: string[][] }[]) {
     config,
   }
 
-  return { rule, ai_metadata: metadata, hit_cache: false }
+  return { rule, ai_metadata: buildMetadataFromRuleConfig(rule.config), hit_cache: false }
 }
 
 function generateTextRule(type: 'word' | 'pdf', lines: string[]) {
