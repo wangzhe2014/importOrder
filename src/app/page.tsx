@@ -98,18 +98,27 @@ export default function Home() {
   const duplicateCheckRequestRef = useRef(0)
 
   const fetchRules = useCallback(async () => {
-    try {
-      const response = await fetch('/api/rules')
-      const data = await response.json()
-      setRules(Array.isArray(data) ? data : (data.rules || []))
-    } catch (error) {
-      console.error('Failed to fetch rules:', error)
+    const response = await fetch('/api/rules')
+    const data = await response.json()
+    if (!response.ok || data.error) {
+      throw new Error(data.error || '规则列表加载失败')
     }
+    setRules(Array.isArray(data) ? data : (data.rules || []))
   }, [])
 
   useEffect(() => {
-    fetchRules()
+    fetchRules().catch(error => {
+      console.error('Failed to fetch rules:', error)
+    })
   }, [fetchRules])
+
+  useEffect(() => {
+    if (appState !== 'select-rule') return
+
+    fetchRules().catch(error => {
+      console.error('Failed to refresh rules for import:', error)
+    })
+  }, [appState, fetchRules])
 
   const resetImport = useCallback(() => {
     setAppState('upload')
@@ -242,6 +251,9 @@ export default function Home() {
         return
       }
 
+      await fetchRules().catch(error => {
+        console.error('Failed to refresh rules before import:', error)
+      })
       setParsedData(data)
       setUploadProgress({ progress: 100, current: 0, total: 0 })
       setLoading(false)
@@ -251,7 +263,7 @@ export default function Home() {
       setFileParseError(`文件上传失败: ${errorMsg}`)
       setLoading(false)
     }
-  }, [])
+  }, [fetchRules])
 
   const executeParse = useCallback((rule: ParsingRule) => {
     setLoading(true)

@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Search,
   Store,
+  Trash2,
 } from 'lucide-react'
 import { ShipmentData } from '@/types'
 
@@ -24,13 +25,18 @@ interface ShipmentListResponse {
   }
 }
 
-const PAGE_SIZE = 10
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+const DEFAULT_PAGE_SIZE = 10
 
 export function ShipmentList() {
   const [data, setData] = useState<ShipmentData[]>([])
   const [total, setTotal] = useState(0)
   const [summary, setSummary] = useState({ storeCount: 0, skuQuantity: 0 })
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false)
+  const [batchDeleteError, setBatchDeleteError] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [jumpPage, setJumpPage] = useState('')
   const [filters, setFilters] = useState({
     external_code: '',
@@ -41,19 +47,20 @@ export function ShipmentList() {
   })
   const [searchFilters, setSearchFilters] = useState(filters)
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   useEffect(() => {
     loadData()
-  }, [page, searchFilters])
+  }, [page, pageSize, searchFilters])
 
   const loadData = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       params.set('page', String(page))
-      params.set('limit', String(PAGE_SIZE))
+      params.set('limit', String(pageSize))
 
       Object.entries(searchFilters).forEach(([key, value]) => {
         if (value) params.set(key, value)
@@ -65,17 +72,21 @@ export function ShipmentList() {
       setData(Array.isArray(result.data) ? result.data : [])
       setTotal(result.total || 0)
       setSummary(result.summary || { storeCount: 0, skuQuantity: 0 })
+      setSelectedIds([])
     } catch (error) {
       console.error('加载运单列表失败:', error)
       setData([])
       setTotal(0)
       setSummary({ storeCount: 0, skuQuantity: 0 })
+      setSelectedIds([])
     } finally {
       setLoading(false)
     }
   }
 
   const pageItems = useMemo(() => buildPageItems(page, totalPages), [page, totalPages])
+  const selectableIds = useMemo(() => data.map(row => row.id).filter(Boolean) as string[], [data])
+  const allSelectableChecked = selectableIds.length > 0 && selectableIds.every(id => selectedIds.includes(id))
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -106,6 +117,52 @@ export function ShipmentList() {
     setPage(Math.min(Math.max(nextPage, 1), totalPages))
   }
 
+  const handlePageSizeChange = (nextPageSize: number) => {
+    setPageSize(nextPageSize)
+    setPage(1)
+    setJumpPage('')
+  }
+
+  const toggleSelectedId = (id: string, checked: boolean) => {
+    setSelectedIds(prev => checked ? Array.from(new Set([...prev, id])) : prev.filter(item => item !== id))
+  }
+
+  const toggleCurrentPage = (checked: boolean) => {
+    setSelectedIds(checked ? selectableIds : [])
+  }
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return
+
+    setDeleting(true)
+    setBatchDeleteError('')
+    try {
+      const response = await fetch('/api/shipments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      const result = await response.json()
+      if (!response.ok || result.error) {
+        setBatchDeleteError(result.error || '批量删除失败')
+        return
+      }
+
+      setSelectedIds([])
+      setShowBatchDeleteDialog(false)
+      if (data.length === selectedIds.length && page > 1) {
+        setPage(prev => Math.max(1, prev - 1))
+      } else {
+        await loadData()
+      }
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      setBatchDeleteError('批量删除失败，请稍后重试')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-200 px-6 py-5">
@@ -122,6 +179,23 @@ export function ShipmentList() {
         <div className="mb-5 grid gap-3 md:grid-cols-2">
           <SummaryCard icon={Store} label="收货门店" value={summary.storeCount} suffix="个" />
           <SummaryCard icon={Package} label="SKU 数量" value={summary.skuQuantity} suffix="件" />
+        </div>
+
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+          <span className="text-sm text-gray-500">
+            已选择 <span className="font-semibold text-[#1d2129]">{selectedIds.length}</span> 条
+          </span>
+          <button
+            onClick={() => {
+              setBatchDeleteError('')
+              setShowBatchDeleteDialog(true)
+            }}
+            disabled={selectedIds.length === 0 || loading || deleting}
+            className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            批量删除
+          </button>
         </div>
 
         <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-7">
@@ -169,10 +243,26 @@ export function ShipmentList() {
       </div>
 
       <div className="overflow-x-auto scrollbar-thin">
-        <table className="w-full min-w-[1320px]">
+        <table className="w-full min-w-[1480px]">
           <thead className="bg-gray-50">
             <tr>
-              {['外部编码', '收货门店', '收件人姓名', '收件人电话', '收件人地址', 'SKU物品编码', 'SKU物品名称', 'SKU规格型号', 'SKU发货数量', '备注', '提交时间'].map(title => (
+              <th className="sticky left-0 z-30 w-12 whitespace-nowrap border-b border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={allSelectableChecked}
+                  disabled={selectableIds.length === 0}
+                  onChange={(event) => toggleCurrentPage(event.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-[#0fc6c2] focus:ring-[#0fc6c2]"
+                  aria-label="选择当前页"
+                />
+              </th>
+              <th className="sticky left-12 z-30 w-40 whitespace-nowrap border-b border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-700">
+                外部编码
+              </th>
+              <th className="sticky left-[208px] z-30 w-44 whitespace-nowrap border-b border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-700 shadow-[6px_0_10px_-10px_rgba(15,23,42,0.55)]">
+                收货门店
+              </th>
+              {['收件人姓名', '收件人电话', '收件人地址', 'SKU物品编码', 'SKU物品名称', 'SKU规格型号', 'SKU发货数量', '备注', '提交时间'].map(title => (
                 <th key={title} className="whitespace-nowrap border-b border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700">
                   {title}
                 </th>
@@ -182,22 +272,32 @@ export function ShipmentList() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center">
+                <td colSpan={12} className="px-4 py-12 text-center">
                   <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-[#0fc6c2] border-t-transparent" />
                   <p className="mt-2 text-gray-500">加载中...</p>
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={12} className="px-4 py-12 text-center text-gray-500">
                   暂无运单记录
                 </td>
               </tr>
             ) : (
               data.map((row, index) => (
                 <tr key={row.id || `${row.external_code}-${row.sku_code}-${index}`} className="border-b border-gray-100 hover:bg-gray-50">
-                  <TableCell>{row.external_code || '-'}</TableCell>
-                  <TableCell>{row.store_name || '-'}</TableCell>
+                  <td className="sticky left-0 z-20 whitespace-nowrap bg-white px-4 py-3 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(row.id && selectedIds.includes(row.id))}
+                      disabled={!row.id}
+                      onChange={(event) => row.id && toggleSelectedId(row.id, event.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-[#0fc6c2] focus:ring-[#0fc6c2]"
+                      aria-label={`选择运单 ${row.external_code || index + 1}`}
+                    />
+                  </td>
+                  <TableCell className="sticky left-12 z-20 w-40 bg-white">{row.external_code || '-'}</TableCell>
+                  <TableCell className="sticky left-[208px] z-20 w-44 bg-white shadow-[6px_0_10px_-10px_rgba(15,23,42,0.55)]">{row.store_name || '-'}</TableCell>
                   <TableCell>{row.receiver_name || '-'}</TableCell>
                   <TableCell>{row.receiver_phone || '-'}</TableCell>
                   <TableCell className="max-w-[220px] truncate" title={row.receiver_address}>{row.receiver_address || '-'}</TableCell>
@@ -219,6 +319,20 @@ export function ShipmentList() {
           共 {total} 条记录，当前第 {page} / {totalPages} 页
         </span>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="mr-2 flex items-center gap-2 text-sm text-gray-600">
+            <span>每页</span>
+            <select
+              value={pageSize}
+              onChange={(event) => handlePageSizeChange(Number(event.target.value))}
+              className="h-8 rounded-lg border border-gray-300 bg-white px-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+            >
+              {PAGE_SIZE_OPTIONS.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <span>条</span>
+          </div>
+
           <button
             onClick={() => setPage(prev => Math.max(1, prev - 1))}
             disabled={page === 1 || loading}
@@ -269,6 +383,20 @@ export function ShipmentList() {
           </div>
         </div>
       </div>
+
+      {showBatchDeleteDialog && (
+        <ConfirmBatchDeleteDialog
+          count={selectedIds.length}
+          errorMessage={batchDeleteError}
+          deleting={deleting}
+          onCancel={() => {
+            if (deleting) return
+            setShowBatchDeleteDialog(false)
+            setBatchDeleteError('')
+          }}
+          onConfirm={handleBatchDelete}
+        />
+      )}
     </div>
   )
 }
@@ -369,6 +497,55 @@ function SummaryCard({
       <div className="mt-2 text-2xl font-semibold text-[#1d2129]">
         {value}
         <span className="ml-1 text-sm font-normal text-[#86909c]">{suffix}</span>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmBatchDeleteDialog({
+  count,
+  errorMessage,
+  deleting,
+  onCancel,
+  onConfirm,
+}: {
+  count: number
+  errorMessage: string
+  deleting: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+          <Trash2 className="h-6 w-6" />
+        </div>
+        <h3 className="text-lg font-semibold text-[#1d2129]">批量删除运单</h3>
+        <p className="mt-2 text-sm leading-6 text-[#667085]">
+          确定要删除选中的 <span className="font-semibold text-red-500">{count}</span> 条运单吗？删除后不可恢复。
+        </p>
+        {errorMessage && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting || count === 0}
+            className="rounded-lg bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {deleting ? '删除中...' : '确认删除'}
+          </button>
+        </div>
       </div>
     </div>
   )

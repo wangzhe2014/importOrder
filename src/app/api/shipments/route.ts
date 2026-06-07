@@ -391,7 +391,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/shipments?id=xxx - Delete a shipment
+// DELETE /api/shipments?id=xxx or body { ids: [] } - Delete shipments
 export async function DELETE(request: NextRequest) {
   try {
     if (!isSupabaseConfigured) {
@@ -400,21 +400,30 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const idsParam = searchParams.get('ids')
+    const body = await request.json().catch(() => ({}))
+    const ids = [
+      ...(Array.isArray(body.ids) ? body.ids : []),
+      ...(idsParam ? idsParam.split(',') : []),
+      ...(id ? [id] : []),
+    ]
+      .map(item => String(item || '').trim())
+      .filter(Boolean)
     
-    if (!id) {
+    if (ids.length === 0) {
       return NextResponse.json({ error: '必须指定要删除的运单ID' }, { status: 400 })
     }
     
     const { error } = await supabase
       .from('shipments')
       .delete()
-      .eq('id', id)
+      .in('id', ids)
       
     if (error) {
       throw error
     }
     
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, deleted: ids.length })
     
   } catch (error) {
     console.error('Shipment delete API error:', error)

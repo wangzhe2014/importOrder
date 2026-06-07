@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS parsing_rules (
     file_type TEXT NOT NULL,
     structure_type TEXT NOT NULL,
     rule_config JSONB NOT NULL,
+    is_builtin BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
@@ -19,6 +20,7 @@ COMMENT ON COLUMN parsing_rules.name IS '规则名称（唯一）';
 COMMENT ON COLUMN parsing_rules.file_type IS '文件类型（如 excel, csv）';
 COMMENT ON COLUMN parsing_rules.structure_type IS '结构类型';
 COMMENT ON COLUMN parsing_rules.rule_config IS '规则配置（JSON 格式）';
+COMMENT ON COLUMN parsing_rules.is_builtin IS '是否为系统内置规则，内置规则不允许删除';
 
 -- ============================================================
 -- shipments 表 (V2 schema)

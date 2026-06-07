@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import * as XLSX from 'xlsx'
 import { ParsingConfig, ParsingRule, ShipmentData } from '@/types'
+import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 import { validateRow } from '@/utils/validator'
 
@@ -187,7 +188,7 @@ free_text_receiver_patterns, free_text_sequence_item。`
 }
 
 async function tryGenerateFromReferenceRules(payload: ParsedFilePayload) {
-  const matches = evaluateReferenceRules(payload)
+  const matches = await evaluateReferenceRules(payload)
   const bestMatch = matches[0]
 
   if (!bestMatch || bestMatch.totalRows === 0 || bestMatch.validRows === 0 || bestMatch.score < 8) {
@@ -214,8 +215,8 @@ async function tryGenerateFromReferenceRules(payload: ParsedFilePayload) {
   }
 }
 
-function evaluateReferenceRules(payload: ParsedFilePayload): ReferenceRuleMatch[] {
-  const rules = loadSavedRules().filter(rule => rule.file_type === payload.type)
+async function evaluateReferenceRules(payload: ParsedFilePayload): Promise<ReferenceRuleMatch[]> {
+  const rules = (await loadSavedRules()).filter(rule => rule.file_type === payload.type)
 
   return rules
     .map((rule) => {
@@ -254,14 +255,33 @@ function isRuleUsableForPayload(payload: ParsedFilePayload, rule: ParsingRule) {
   }
 }
 
-function loadSavedRules(): ParsingRule[] {
+async function loadSavedRules(): Promise<ParsingRule[]> {
+  if (!isSupabaseConfigured) {
+    console.warn('Supabase 未配置，无法加载 AI 参考规则')
+    return []
+  }
+
   try {
-    const filePath = path.join(process.cwd(), 'saved_rules.json')
-    const content = fs.readFileSync(filePath, 'utf8')
-    const rules = JSON.parse(content)
-    return Array.isArray(rules) ? rules : []
+    const { data, error } = await supabase
+      .from('parsing_rules')
+      .select('*')
+      .order('name', { ascending: true })
+
+    if (error) {
+      throw error
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      file_type: row.file_type,
+      structure_type: row.structure_type,
+      config: row.rule_config,
+      is_builtin: Boolean(row.is_builtin),
+    }))
   } catch (error) {
-    console.warn('Failed to load saved_rules.json as AI references:', error)
+    console.warn('Failed to load parsing_rules as AI references:', error)
     return []
   }
 }

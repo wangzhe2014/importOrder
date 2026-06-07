@@ -30,7 +30,7 @@ interface RuleManagerProps {
   } | null
   onRuleSelect: (rule: ParsingRule) => void
   onNewRule: (rule: ParsingRule) => void
-  onRefresh: () => void
+  onRefresh: () => void | Promise<void>
 }
 
 const AI_STATUS_LABELS: Record<string, string> = {
@@ -43,12 +43,15 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
   const [showNewRuleModal, setShowNewRuleModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedRuleForEdit, setSelectedRuleForEdit] = useState<ParsingRule | null>(null)
+  const [editOriginalName, setEditOriginalName] = useState('')
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiRule, setAiRule] = useState<ParsingRule | null>(null)
   const [aiMetadata, setAiMetadata] = useState<Record<string, { status: string; reason: string }>>({})
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiWarning, setAiWarning] = useState<string | null>(null)
   const [aiConfigError, setAiConfigError] = useState<string | null>(null)
+  const [ruleSaving, setRuleSaving] = useState(false)
+  const [ruleSaveMessage, setRuleSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [copiedRuleId, setCopiedRuleId] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [previewData, setPreviewData] = useState<ShipmentData[]>([])
@@ -71,6 +74,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
     setAiError(null)
     setAiWarning(null)
     setAiConfigError(null)
+    setRuleSaveMessage(null)
 
     try {
       const response = await fetch('/api/generate-rule', {
@@ -97,7 +101,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
       }
       setAiRule(generatedRule)
       setAiMetadata(result.ai_metadata || {})
-      setAiWarning(result.warning || null)
+      setAiWarning(shouldDisplayAiWarning(result.warning) ? result.warning : null)
     } catch (error) {
       setAiError(error instanceof Error ? error.message : 'AI 规则生成请求失败')
     } finally {
@@ -121,22 +125,41 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
 
   const handleSaveRule = async (rule: ParsingRule) => {
     const normalizedRule = { ...rule, config: normalizeRuleConfig(rule.config) }
+    setRuleSaving(true)
+    setRuleSaveMessage(null)
     try {
       const response = await fetch('/api/rules', {
         method: normalizedRule.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalizedRule),
+        body: JSON.stringify({
+          ...normalizedRule,
+          originalName: normalizedRule.id ? editOriginalName || normalizedRule.name : undefined,
+        }),
       })
       const result = await response.json()
-      if (response.ok && result.success) {
-        onRefresh()
+      if (!response.ok || result.error || !result.success) {
+        setRuleSaveMessage({ type: 'error', text: result.error || '规则保存失败，请稍后重试' })
+        return false
       }
+
+      Promise.resolve(onRefresh()).catch((refreshError: unknown) => {
+        console.error('Failed to refresh rules after save:', refreshError)
+      })
+      setRuleSaveMessage({ type: 'success', text: '规则保存成功。' })
+      return true
     } catch (error) {
       console.error('Failed to save rule:', error)
+      setRuleSaveMessage({ type: 'error', text: '规则保存失败，请检查网络或数据库配置' })
+      return false
+    } finally {
+      setRuleSaving(false)
     }
   }
 
-  const handleDeleteRule = async (ruleName: string) => {
+  const handleDeleteRule = async (rule: ParsingRule) => {
+    if (rule.is_builtin) return
+
+    const ruleName = rule.name
     if (!confirm(`确定要删除规则 "${ruleName}" 吗？`)) return
 
     try {
@@ -156,11 +179,13 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
     const copiedRule: ParsingRule = {
       ...rule,
       id: undefined,
+      is_builtin: false,
       name: `${rule.name}（副本）`,
       description: rule.description ? `${rule.description}（复制）` : undefined,
       config: normalizeRuleConfig(rule.config),
     }
     setSelectedRuleForEdit(copiedRule)
+    setEditOriginalName('')
     setShowEditModal(true)
     setCopiedRuleId(rule.id || rule.name)
     setTimeout(() => setCopiedRuleId(null), 2000)
@@ -213,6 +238,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
     setAiError(null)
     setAiWarning(null)
     setAiConfigError(null)
+    setRuleSaveMessage(null)
   }
 
   const handleTestParse = (rule: ParsingRule) => {
@@ -260,16 +286,31 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
             <p className="text-sm text-gray-400">点击新建规则，可让 AI 根据样本生成初始规则。</p>
           </div>
         ) : (
-          filteredRules.map((rule) => (
+          filteredRules.map((rule) => {
+            const isBuiltIn = Boolean(rule.is_builtin)
+            return (
             <div key={rule.id || rule.name} className="rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md">
               <div className="mb-3 flex items-start justify-between">
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-[#e8fafa] px-2 py-1 text-xs font-medium text-[#0b6e6e]">
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                    rule.structure_type === 'standard'
+                      ? 'bg-blue-100 text-blue-700'
+                      : rule.structure_type === 'matrix'
+                        ? 'bg-purple-100 text-purple-700'
+                        : rule.structure_type === 'card'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-green-100 text-green-700'
+                  }`}>
                     {STRUCTURE_TYPE_LABELS[rule.structure_type]}
                   </span>
                   <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
                     {FILE_TYPE_LABELS[rule.file_type]}
                   </span>
+                  {isBuiltIn && (
+                    <span className="rounded-full bg-[#fff7e6] px-2 py-1 text-xs font-medium text-[#d46b08]">
+                      内置
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-1">
                   <button
@@ -282,6 +323,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
                   <button
                     onClick={() => {
                       setSelectedRuleForEdit({ ...rule, config: normalizeRuleConfig(rule.config) })
+                      setEditOriginalName(rule.name)
                       setShowEditModal(true)
                     }}
                     className="rounded p-1.5 text-gray-400 hover:bg-[#e8fafa] hover:text-[#0fc6c2]"
@@ -289,13 +331,15 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
                   >
                     <Edit3 className="h-4 w-4" />
                   </button>
-                  <button
-                    onClick={() => handleDeleteRule(rule.name)}
-                    className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                    title="删除规则"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {!isBuiltIn && (
+                    <button
+                      onClick={() => handleDeleteRule(rule)}
+                      className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                      title="删除规则"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -310,7 +354,8 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
                 使用此规则解析
               </button>
             </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -322,14 +367,18 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
           aiWarning={aiWarning}
           aiGenerating={aiGenerating}
           aiConfigError={aiConfigError}
+          ruleSaving={ruleSaving}
+          ruleSaveMessage={ruleSaveMessage}
           onGenerate={handleGenerateRule}
           onRuleChange={setAiRule}
           onConfigErrorChange={setAiConfigError}
           onCancel={closeNewRuleModal}
-          onSave={() => {
+          onSave={async () => {
             if (!aiRule || aiConfigError) return
-            handleSaveRule(aiRule)
-            closeNewRuleModal()
+            const saved = await handleSaveRule(aiRule)
+            if (saved) {
+              closeNewRuleModal()
+            }
           }}
           onApply={() => aiRule && handleApplyRule(aiRule)}
           onTest={() => aiRule && handleTestParse(aiRule)}
@@ -343,12 +392,15 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
           onCancel={() => {
             setShowEditModal(false)
             setSelectedRuleForEdit(null)
+            setEditOriginalName('')
           }}
           onTest={() => handleTestParse(selectedRuleForEdit)}
-          onSave={() => {
-            handleSaveRule(selectedRuleForEdit)
+          onSave={async () => {
+            const saved = await handleSaveRule(selectedRuleForEdit)
+            if (!saved) return
             setShowEditModal(false)
             setSelectedRuleForEdit(null)
+            setEditOriginalName('')
           }}
         />
       )}
@@ -368,6 +420,10 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onRefre
   )
 }
 
+function shouldDisplayAiWarning(warning: unknown): warning is string {
+  return typeof warning === 'string' && !warning.includes('本地启发式规则生成')
+}
+
 function AiRuleModal({
   aiRule,
   aiMetadata,
@@ -375,6 +431,8 @@ function AiRuleModal({
   aiWarning,
   aiGenerating,
   aiConfigError,
+  ruleSaving,
+  ruleSaveMessage,
   onGenerate,
   onRuleChange,
   onConfigErrorChange,
@@ -389,6 +447,8 @@ function AiRuleModal({
   aiWarning: string | null
   aiGenerating: boolean
   aiConfigError: string | null
+  ruleSaving: boolean
+  ruleSaveMessage: { type: 'success' | 'error'; text: string } | null
   onGenerate: () => void
   onRuleChange: (rule: ParsingRule) => void
   onConfigErrorChange: (message: string | null) => void
@@ -426,6 +486,16 @@ function AiRuleModal({
           {aiWarning && !aiError && (
             <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
               {aiWarning}
+            </div>
+          )}
+
+          {ruleSaveMessage && (
+            <div className={`mb-4 rounded-xl border p-4 text-sm ${
+              ruleSaveMessage.type === 'success'
+                ? 'border-[#d0e8e8] bg-[#e8fafa] text-[#0b6e6e]'
+                : 'border-red-200 bg-red-50 text-red-700'
+            }`}>
+              {ruleSaveMessage.text}
             </div>
           )}
 
@@ -547,14 +617,14 @@ function AiRuleModal({
               </button>
               <button
                 onClick={onSave}
-                disabled={!!aiConfigError}
+                disabled={!!aiConfigError || ruleSaving}
                 className="rounded-lg bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                保存规则
+                {ruleSaving ? '保存中...' : '保存规则'}
               </button>
               <button
                 onClick={onApply}
-                disabled={!!aiConfigError}
+                disabled={!!aiConfigError || ruleSaving}
                 className="jt-btn-primary px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 使用此规则解析

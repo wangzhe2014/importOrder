@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import { Copy, Edit3, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import { Copy, Edit3, FileStack, Layers3, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
 import { ParsingRule } from '@/types'
 import { RuleConfigForm } from '@/components/RuleConfigForm'
 import { normalizeRuleConfig } from '@/utils/ruleConfig'
@@ -28,7 +28,20 @@ export function RuleCenter() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [deleteRuleName, setDeleteRuleName] = useState<string | null>(null)
   const [selectedRule, setSelectedRule] = useState<ParsingRule | null>(null)
+  const [editOriginalName, setEditOriginalName] = useState('')
   const [newRule, setNewRule] = useState<ParsingRule>(createEmptyRule())
+
+  const summary = useMemo(() => {
+    const excelCount = rules.filter(rule => rule.file_type === 'excel').length
+    const textCount = rules.filter(rule => rule.file_type === 'word' || rule.file_type === 'pdf').length
+    const complexCount = rules.filter(rule => rule.structure_type !== 'standard').length
+    return {
+      total: rules.length,
+      excelCount,
+      textCount,
+      complexCount,
+    }
+  }, [rules])
 
   useEffect(() => {
     fetchRules()
@@ -55,11 +68,15 @@ export function RuleCenter() {
 
   const handleSaveRule = async (rule: ParsingRule) => {
     setErrorMessage('')
+    const normalizedRule = { ...rule, config: normalizeRuleConfig(rule.config) }
     try {
       const response = await fetch('/api/rules', {
-        method: rule.id ? 'PUT' : 'POST',
+        method: normalizedRule.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...rule, config: normalizeRuleConfig(rule.config) }),
+        body: JSON.stringify({
+          ...normalizedRule,
+          originalName: normalizedRule.id ? editOriginalName || normalizedRule.name : undefined,
+        }),
       })
 
       const result = await response.json()
@@ -72,6 +89,7 @@ export function RuleCenter() {
       setShowNewRuleModal(false)
       setShowEditModal(false)
       setSelectedRule(null)
+      setEditOriginalName('')
       resetNewRule()
     } catch (error) {
       console.error('Failed to save rule:', error)
@@ -104,10 +122,12 @@ export function RuleCenter() {
     const copiedRule: ParsingRule = {
       ...rule,
       id: undefined,
+      is_builtin: false,
       name: `${rule.name}（副本）`,
       description: rule.description ? `${rule.description}（复制）` : undefined,
     }
     setSelectedRule(copiedRule)
+    setEditOriginalName('')
     setShowEditModal(true)
   }
 
@@ -118,6 +138,7 @@ export function RuleCenter() {
 
   const handleOpenEditModal = (rule: ParsingRule) => {
     setSelectedRule(rule)
+    setEditOriginalName(rule.name)
     setShowEditModal(true)
   }
 
@@ -126,7 +147,6 @@ export function RuleCenter() {
       <div className="jt-panel p-5 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="jt-eyebrow">Rule Center</p>
             <h2 className="mt-1 text-xl font-bold text-[#1d2129]">解析规则管理</h2>
             <p className="mt-2 text-sm text-[#86909c]">
               管理所有文件解析规则，支持创建、编辑、复制和删除。
@@ -147,6 +167,14 @@ export function RuleCenter() {
           {errorMessage}
         </div>
       )}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <RuleSummaryCard icon={FileStack} label="规则总数" value={summary.total} suffix="条" />
+        <RuleSummaryCard icon={Layers3} label="Excel 规则" value={summary.excelCount} suffix="条" />
+        <RuleSummaryCard icon={Sparkles} label="Word/PDF 规则" value={summary.textCount} suffix="条" />
+        <RuleSummaryCard icon={Edit3} label="复杂结构规则" value={summary.complexCount} suffix="条" />
+      </div>
+
       {loading ? (
         <div className="jt-panel flex items-center justify-center py-12">
           <RefreshCw className="h-8 w-8 animate-spin text-[#0fc6c2]" />
@@ -240,6 +268,7 @@ export function RuleCenter() {
           onCancel={() => {
             setShowEditModal(false)
             setSelectedRule(null)
+            setEditOriginalName('')
           }}
           onSave={() => handleSaveRule(selectedRule)}
           saveDisabled={!selectedRule.name.trim()}
@@ -434,6 +463,31 @@ function ConfirmDeleteDialog({
             确认删除
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function RuleSummaryCard({
+  icon: Icon,
+  label,
+  value,
+  suffix,
+}: {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value: number
+  suffix: string
+}) {
+  return (
+    <div className="rounded-xl border border-[#d0e8e8] bg-[#f7ffff] p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-[#667085]">{label}</span>
+        <Icon className="h-4 w-4 text-[#0fc6c2]" />
+      </div>
+      <div className="mt-2 text-2xl font-semibold text-[#1d2129]">
+        {value}
+        <span className="ml-1 text-sm font-normal text-[#86909c]">{suffix}</span>
       </div>
     </div>
   )
