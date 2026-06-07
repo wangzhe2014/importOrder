@@ -24,7 +24,7 @@ import { ResultModal } from '@/components/ResultModal'
 import { RuleManager } from '@/components/RuleManager'
 import { RuleCenter } from '@/components/RuleCenter'
 import { PreviewRow, ParsingRule, ShipmentData, ImportResult, FIELD_DISPLAY_NAMES } from '@/types'
-import { validateAll, hasErrors, getAllErrors, checkDuplicates } from '@/utils/validator'
+import { validateAll, hasErrors, getAllErrors } from '@/utils/validator'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 
 type AppState = 'upload' | 'select-rule' | 'preview' | 'result' | 'shipments'
@@ -32,6 +32,45 @@ type ParsedFileData = {
   type: 'excel' | 'word' | 'pdf'
   sheets?: { name: string; data: string[][] }[]
   lines?: string[]
+}
+
+const PREVIEW_FIELDS: (keyof ShipmentData)[] = [
+  'external_code',
+  'store_name',
+  'receiver_name',
+  'receiver_phone',
+  'receiver_address',
+  'sku_code',
+  'sku_name',
+  'sku_quantity',
+  'sku_spec',
+  'remark',
+]
+
+function normalizePreviewValue(value: unknown) {
+  if (value === undefined || value === null) return ''
+  if (typeof value === 'number') return value
+
+  const text = String(value).trim()
+  if (text.toLowerCase() === 'undefined' || text.toLowerCase() === 'null') return ''
+  return text
+}
+
+function normalizeParsedShipments(rows: Partial<ShipmentData>[]): Partial<ShipmentData>[] {
+  return rows.map((row) => {
+    const normalized: Record<string, string | number> = {}
+
+    PREVIEW_FIELDS.forEach((field) => {
+      const value = normalizePreviewValue(row[field])
+      if (field === 'sku_quantity') {
+        normalized[field] = value === '' ? 0 : Number(value) || 0
+      } else {
+        normalized[field] = value as string
+      }
+    })
+
+    return normalized as Partial<ShipmentData>
+  })
 }
 
 const workflowSteps = [
@@ -82,6 +121,9 @@ export default function Home() {
   }, [])
 
   const applyDatabaseDuplicates = useCallback(async (rows: PreviewRow[]) => {
+    const duplicateCodes = Array.from(
+      new Set(rows.map((row) => String(row.external_code || '').trim()).filter(Boolean))
+    )
     const duplicateItems = rows
       .map((row) => ({
         external_code: String(row.external_code || '').trim(),
@@ -93,7 +135,7 @@ export default function Home() {
       new Map(duplicateItems.map((item) => [`${item.external_code}::${item.sku_code}`, item])).values()
     )
 
-    if (uniqueItems.length === 0) {
+    if (uniqueItems.length === 0 && duplicateCodes.length === 0) {
       return rows.map((row) =>
         row.duplicateSource === 'database'
           ? { ...row, isDuplicate: false, duplicateWith: undefined, duplicateSource: undefined }
@@ -102,7 +144,8 @@ export default function Home() {
     }
 
     try {
-      const duplicateKeys = new Set<string>()
+      const duplicateItemKeys = new Set<string>()
+      const duplicateExternalCodes = new Set<string>()
       const chunkSize = 200
 
       for (let start = 0; start < uniqueItems.length; start += chunkSize) {
@@ -116,7 +159,22 @@ export default function Home() {
 
         const data = await response.json()
         if (Array.isArray(data)) {
-          data.forEach((key) => duplicateKeys.add(String(key).trim()))
+          data.forEach((key) => duplicateItemKeys.add(String(key).trim()))
+        }
+      }
+
+      for (let start = 0; start < duplicateCodes.length; start += chunkSize) {
+        const chunk = duplicateCodes.slice(start, start + chunkSize)
+        const params = new URLSearchParams({ check_duplicates: chunk.join(',') })
+        const response = await fetch(`/api/shipments?${params.toString()}`)
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          data.forEach((code) => duplicateExternalCodes.add(String(code).trim()))
         }
       }
 
@@ -125,12 +183,21 @@ export default function Home() {
         const skuCode = String(row.sku_code || '').trim()
         const key = `${code}::${skuCode}`
 
-        if (code && skuCode && duplicateKeys.has(key)) {
+        if (code && duplicateExternalCodes.has(code)) {
           return {
             ...row,
             isDuplicate: true,
             duplicateSource: 'database' as const,
-            duplicateWith: '数据库已有相同 SKU',
+            duplicateWith: '数据库已有相同外部编码',
+          }
+        }
+
+        if (code && skuCode && duplicateItemKeys.has(key)) {
+          return {
+            ...row,
+            isDuplicate: true,
+            duplicateSource: 'database' as const,
+            duplicateWith: '数据库已有相同外部编码+SKU',
           }
         }
 
@@ -143,6 +210,12 @@ export default function Home() {
       return rows
     }
   }, [])
+
+  const buildValidatedPreviewRows = useCallback(async (rows: Partial<ShipmentData>[]) => {
+    const normalizedRows = normalizeParsedShipments(rows)
+    const validationRows = validateAll(normalizedRows)
+    return applyDatabaseDuplicates(validationRows)
+  }, [applyDatabaseDuplicates])
 
   const handleFileSelect = useCallback(async (file: File) => {
     setCurrentFile(file)
@@ -194,17 +267,41 @@ export default function Home() {
           results = parseTextWithRule(parsedData.lines, rule)
         }
 
+        if (results.length === 0) {
+          setImportResult({
+            success: 0,
+            failed: 0,
+            failedRows: [],
+            error: '规则没有解析出任何数据，请返回规则配置页调整规则后再试',
+            failedReasons: [{ message: '解析结果为空' }],
+          })
+          setPreviewRows([])
+          setAppState('result')
+          return
+        }
+
         setLoadingMessage('正在校验重复数据...')
         setUploadProgress({ progress: 72, current: results.length, total: results.length })
-        const validatedRows = await applyDatabaseDuplicates(validateAll(results))
+        const validatedRows = await buildValidatedPreviewRows(results)
         setPreviewRows(validatedRows)
         setUploadProgress({ progress: 100, current: results.length, total: results.length })
         setAppState('preview')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '未知错误'
+        setImportResult({
+          success: 0,
+          failed: 0,
+          failedRows: [],
+          error: `规则解析失败：${message}`,
+          failedReasons: [{ message }],
+        })
+        setPreviewRows([])
+        setAppState('result')
       } finally {
         setLoading(false)
       }
     }, 240)
-  }, [applyDatabaseDuplicates, parsedData])
+  }, [buildValidatedPreviewRows, parsedData])
 
   const handleRuleSelect = useCallback((rule: ParsingRule) => {
     setSelectedRule(rule)
@@ -223,7 +320,7 @@ export default function Home() {
     setLoadingMessage('正在提交前校验...')
     setUploadProgress({ progress: 10, current: previewRows.length, total: previewRows.length })
 
-    const latestRows = await applyDatabaseDuplicates(checkDuplicates(previewRows))
+    const latestRows = await buildValidatedPreviewRows(previewRows)
 
     if (hasErrors(latestRows)) {
       setPreviewRows(latestRows)

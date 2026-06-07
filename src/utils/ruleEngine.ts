@@ -23,10 +23,13 @@ export function coordinateToRowCol(coord: string): { r: number; c: number } {
 }
 
 // Extract generic metadata from sheet data
-function extractMetadata(sheetData: string[][], extractors: MetaExtractor[] = []): Partial<ShipmentData> {
+function extractMetadata(sheetData: string[][], extractors: unknown = []): Partial<ShipmentData> {
   const meta: Partial<ShipmentData> = {}
+  const normalizedExtractors: MetaExtractor[] = Array.isArray(extractors)
+    ? extractors.filter((ext): ext is MetaExtractor => Boolean(ext && typeof ext === 'object'))
+    : []
   
-  extractors.forEach((ext) => {
+  normalizedExtractors.forEach((ext) => {
     if (ext.source_type === 'cell' && ext.coordinate) {
       const { r, c } = coordinateToRowCol(ext.coordinate)
       if (sheetData[r] && sheetData[r][c] !== undefined) {

@@ -5,6 +5,73 @@ import { Plus, Copy, Trash2, Edit3, Sparkles, Check, X, RefreshCw, Eye, AlertTri
 import { ParsingRule, ShipmentData, FIELD_DISPLAY_NAMES } from '@/types'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 
+const STRUCTURE_TYPE_LABELS: Record<ParsingRule['structure_type'], string> = {
+  standard: '标准表格',
+  matrix: '矩阵转置',
+  card: '卡片式',
+  free_text: '纯文本',
+}
+
+const AI_STATUS_LABELS: Record<string, string> = {
+  confident: '确定',
+  guessed: '推测',
+  not_found: '未找到',
+}
+
+const EDITABLE_FIELDS: (keyof ShipmentData)[] = [
+  'external_code',
+  'store_name',
+  'receiver_name',
+  'receiver_phone',
+  'receiver_address',
+  'sku_code',
+  'sku_name',
+  'sku_spec',
+  'sku_quantity',
+  'remark',
+]
+
+const COMMON_GROUP_FIELDS: (keyof ShipmentData)[] = [
+  'external_code',
+  'store_name',
+  'receiver_name',
+  'receiver_phone',
+  'receiver_address',
+]
+
+function normalizeRuleConfig(config: unknown): ParsingRule['config'] {
+  if (!config || typeof config !== 'object') return {}
+
+  const normalized = { ...(config as ParsingRule['config']) }
+
+  if (normalized.meta_extractors && !Array.isArray(normalized.meta_extractors)) {
+    const rawExtractors = normalized.meta_extractors as unknown
+    if (
+      rawExtractors &&
+      typeof rawExtractors === 'object' &&
+      'field' in rawExtractors &&
+      'source_type' in rawExtractors
+    ) {
+      normalized.meta_extractors = [rawExtractors as NonNullable<ParsingRule['config']['meta_extractors']>[number]]
+    } else {
+      normalized.meta_extractors = []
+    }
+  }
+
+  if (normalized.free_text_sku_patterns && !Array.isArray(normalized.free_text_sku_patterns)) {
+    normalized.free_text_sku_patterns = [String(normalized.free_text_sku_patterns)]
+  }
+
+  ;(['carry_forward_fields', 'group_fill_fields', 'skip_row_patterns', 'record_separators'] as const).forEach((key) => {
+    const value = normalized[key] as unknown
+    if (value !== undefined && !Array.isArray(value)) {
+      normalized[key] = [String(value)] as never
+    }
+  })
+
+  return normalized
+}
+
 interface RuleManagerProps {
   rules: ParsingRule[]
   fileType: 'excel' | 'word' | 'pdf'
@@ -25,6 +92,10 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiRule, setAiRule] = useState<ParsingRule | null>(null)
   const [aiMetadata, setAiMetadata] = useState<Record<string, { status: string; reason: string }>>({})
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiWarning, setAiWarning] = useState<string | null>(null)
+  const [aiConfigDraft, setAiConfigDraft] = useState('')
+  const [aiConfigError, setAiConfigError] = useState<string | null>(null)
   const [copiedRuleId, setCopiedRuleId] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [previewData, setPreviewData] = useState<ShipmentData[]>([])
@@ -32,11 +103,18 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   const handleGenerateRule = useCallback(async () => {
-    if (!parsedData) return
+    if (!parsedData) {
+      setAiError('没有可分析的文件结构，请先上传文件')
+      return
+    }
 
     setAiGenerating(true)
     setAiRule(null)
     setAiMetadata({})
+    setAiError(null)
+    setAiWarning(null)
+    setAiConfigDraft('')
+    setAiConfigError(null)
 
     try {
       const response = await fetch('/api/generate-rule', {
@@ -49,15 +127,29 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
 
       const result = await response.json()
 
-      if (result.error) {
+      if (!response.ok || result.error) {
         console.error('Failed to generate rule:', result.error)
+        setAiError(result.error || `规则生成接口异常：HTTP ${response.status}`)
         return
       }
 
-      setAiRule(result.rule)
+      if (!result.rule) {
+        setAiError('规则生成失败：接口没有返回规则内容')
+        return
+      }
+
+      const generatedRule = {
+        ...(result.rule as ParsingRule),
+        config: normalizeRuleConfig((result.rule as ParsingRule).config),
+      }
+      setAiRule(generatedRule)
+      setAiConfigDraft(JSON.stringify(generatedRule.config, null, 2))
+      setAiConfigError(null)
       setAiMetadata(result.ai_metadata || {})
+      setAiWarning(result.warning || null)
     } catch (error) {
       console.error('Failed to call AI:', error)
+      setAiError(error instanceof Error ? error.message : 'AI 规则生成请求失败')
     } finally {
       setAiGenerating(false)
     }
@@ -83,12 +175,13 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
 
   const handleSaveRule = async (rule: ParsingRule) => {
     try {
+      const normalizedRule = { ...rule, config: normalizeRuleConfig(rule.config) }
       const response = await fetch('/api/rules', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(rule),
+        body: JSON.stringify(normalizedRule),
       })
 
       const result = await response.json()
@@ -131,9 +224,54 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
   }
 
   const handleApplyRule = (rule: ParsingRule) => {
-    onRuleSelect(rule)
+    if (!parsedData) {
+      setAiError('没有可用的样例数据，请先上传文件')
+      return
+    }
+
+    const normalizedRule = { ...rule, config: normalizeRuleConfig(rule.config) }
+
+    try {
+      let results: ShipmentData[] = []
+      if (normalizedRule.file_type === 'excel') {
+        if (!parsedData.sheets) {
+          setAiError('Excel 数据为空，无法使用此规则解析')
+          return
+        }
+        results = parseExcelWithRule(parsedData.sheets, normalizedRule)
+      } else {
+        if (!parsedData.lines) {
+          setAiError('文本数据为空，无法使用此规则解析')
+          return
+        }
+        results = parseTextWithRule(parsedData.lines, normalizedRule)
+      }
+
+      if (results.length === 0) {
+        setAiError('规则没有解析出任何数据，请先点击“试解析”查看原因，或调整上方规则表单')
+        return
+      }
+    } catch (error) {
+      setAiError(`规则预检失败：${error instanceof Error ? error.message : '未知错误'}`)
+      return
+    }
+
+    onRuleSelect(normalizedRule)
     setShowNewRuleModal(false)
     setShowEditModal(false)
+    setAiError(null)
+    setAiWarning(null)
+    setAiConfigError(null)
+  }
+
+  const closeNewRuleModal = () => {
+    setShowNewRuleModal(false)
+    setAiRule(null)
+    setAiMetadata({})
+    setAiError(null)
+    setAiWarning(null)
+    setAiConfigDraft('')
+    setAiConfigError(null)
   }
 
   const handleTestParse = (rule: ParsingRule) => {
@@ -143,6 +281,8 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
       setShowPreviewModal(true)
       return
     }
+
+    const normalizedRule = { ...rule, config: normalizeRuleConfig(rule.config) }
 
     setPreviewing(true)
     setPreviewError(null)
@@ -157,7 +297,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
           setPreviewing(false)
           return
         }
-        results = parseExcelWithRule(parsedData.sheets, rule)
+        results = parseExcelWithRule(parsedData.sheets, normalizedRule)
       } else {
         // word or pdf
         if (!parsedData.lines) {
@@ -166,7 +306,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
           setPreviewing(false)
           return
         }
-        results = parseTextWithRule(parsedData.lines, rule)
+        results = parseTextWithRule(parsedData.lines, normalizedRule)
       }
 
       // 只显示前 20 行预览
@@ -298,7 +438,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
                 </p>
               </div>
               <button
-                onClick={() => { setShowNewRuleModal(false); setAiRule(null); setAiMetadata({}) }}
+                onClick={closeNewRuleModal}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
               >
                 <X className="w-5 h-5" />
@@ -325,6 +465,18 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
                   )}
                 </button>
               </div>
+
+              {aiError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {aiError}
+                </div>
+              )}
+
+              {aiWarning && !aiError && (
+                <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-700">
+                  {aiWarning}
+                </div>
+              )}
 
               {aiRule && (
                 <div className="space-y-4">
@@ -358,10 +510,10 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
                         onChange={(e) => setAiRule({ ...aiRule, structure_type: e.target.value as ParsingRule['structure_type'] })}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg"
                       >
-                        <option value="standard">标准表格</option>
-                        <option value="matrix">矩阵转置</option>
-                        <option value="card">卡片式</option>
-                        <option value="free_text">纯文本</option>
+                        <option value="standard">{STRUCTURE_TYPE_LABELS.standard}</option>
+                        <option value="matrix">{STRUCTURE_TYPE_LABELS.matrix}</option>
+                        <option value="card">{STRUCTURE_TYPE_LABELS.card}</option>
+                        <option value="free_text">{STRUCTURE_TYPE_LABELS.free_text}</option>
                       </select>
                     </div>
 
@@ -374,12 +526,12 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
                               info.status === 'confident' ? 'bg-green-50' :
                               info.status === 'guessed' ? 'bg-yellow-50' : 'bg-gray-50'
                             }`}>
-                              <span className="text-sm text-gray-700">{field}</span>
+                              <span className="text-sm text-gray-700">{FIELD_DISPLAY_NAMES[field] || field}</span>
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
                                 info.status === 'confident' ? 'bg-green-100 text-green-700' :
                                 info.status === 'guessed' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'
                               }`}>
-                                {info.status === 'confident' ? '确定' : info.status === 'guessed' ? '推测' : '未找到'}
+                                {AI_STATUS_LABELS[info.status] || info.status}
                               </span>
                             </div>
                           ))}
@@ -387,19 +539,53 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
                       </div>
                     )}
 
+                    <RuleConfigForm
+                      rule={aiRule}
+                      onChange={(nextConfig) => {
+                        const normalizedConfig = normalizeRuleConfig(nextConfig)
+                        setAiRule({ ...aiRule, config: normalizedConfig })
+                        setAiConfigDraft(JSON.stringify(normalizedConfig, null, 2))
+                        setAiConfigError(null)
+                      }}
+                    />
+
+                    <details className="mt-4 rounded-xl border border-gray-200 bg-white">
+                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-gray-700">
+                        高级 JSON 编辑（懂规则时再展开）
+                      </summary>
+                      <div className="border-t border-gray-100 p-4">
+                        <textarea
+                          value={aiConfigDraft}
+                          onChange={(e) => {
+                            const nextValue = e.target.value
+                            setAiConfigDraft(nextValue)
+                            try {
+                              const config = normalizeRuleConfig(JSON.parse(nextValue))
+                              setAiRule({ ...aiRule, config })
+                              setAiConfigError(null)
+                            } catch {
+                              setAiConfigError('JSON 格式不正确，请修正后再试解析、保存或使用')
+                            }
+                          }}
+                          rows={8}
+                          className={`w-full px-3 py-2 border rounded-lg font-mono text-sm focus:ring-2 focus:ring-[#0fc6c2] focus:border-transparent ${
+                            aiConfigError ? 'border-red-300 bg-red-50/40' : 'border-gray-200'
+                          }`}
+                        />
+                        <p className={`mt-1 text-xs ${aiConfigError ? 'text-red-500' : 'text-gray-500'}`}>
+                          {aiConfigError || '一般不用改这里；上面的表单会自动同步到 JSON。'}
+                        </p>
+                      </div>
+                    </details>
+
                     <div className="flex gap-3 mt-4">
                       <button
                         onClick={() => handleTestParse(aiRule)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                        disabled={!!aiConfigError}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                         试解析
-                      </button>
-                      <button
-                        onClick={() => handleApplyRule(aiRule)}
-                        className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        使用此规则解析
                       </button>
                     </div>
                   </div>
@@ -421,7 +607,7 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
 
             <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
               <button
-                onClick={() => { setShowNewRuleModal(false); setAiRule(null); setAiMetadata({}) }}
+                onClick={closeNewRuleModal}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 取消
@@ -429,14 +615,16 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
               {aiRule && (
                 <>
                   <button
-                    onClick={() => { handleSaveRule(aiRule); setShowNewRuleModal(false); setAiRule(null); setAiMetadata({}) }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    onClick={() => { handleSaveRule(aiRule); closeNewRuleModal() }}
+                    disabled={!!aiConfigError}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     保存规则
                   </button>
                   <button
                     onClick={() => handleApplyRule(aiRule)}
-                    className="jt-btn-primary px-4 py-2"
+                    disabled={!!aiConfigError}
+                    className="jt-btn-primary px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     使用此规则解析
                   </button>
@@ -630,6 +818,319 @@ export function RuleManager({ rules, fileType, parsedData, onRuleSelect, onNewRu
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function RuleConfigForm({
+  rule,
+  onChange,
+}: {
+  rule: ParsingRule
+  onChange: (config: ParsingRule['config']) => void
+}) {
+  const config = rule.config
+  const isTextRule = rule.file_type === 'word' || rule.file_type === 'pdf' || rule.structure_type === 'free_text'
+
+  const updateConfig = (patch: Partial<ParsingRule['config']>) => {
+    onChange({ ...config, ...patch })
+  }
+
+  const setRowIndex = (key: 'header_row_index' | 'data_start_row_index', value: string) => {
+    updateConfig({ [key]: value === '' ? undefined : Math.max(0, Number(value) - 1) })
+  }
+
+  const setColumnMapping = (field: keyof ShipmentData, value: string) => {
+    const nextMappings = { ...(config.column_mappings || {}) }
+    if (value.trim()) {
+      nextMappings[field] = value
+    } else {
+      delete nextMappings[field]
+    }
+    updateConfig({ column_mappings: nextMappings })
+  }
+
+  const setDefaultValue = (field: keyof ShipmentData, value: string) => {
+    const nextDefaults: Record<string, string | number> = { ...(config.default_values || {}) }
+    if (value.trim()) {
+      nextDefaults[field] = field === 'sku_quantity' ? Number(value) || 0 : value
+    } else {
+      delete nextDefaults[field]
+    }
+    updateConfig({ default_values: nextDefaults as Partial<ShipmentData> })
+  }
+
+  const setReceiverPattern = (field: keyof ShipmentData, value: string) => {
+    const nextPatterns = { ...(config.free_text_receiver_patterns || {}) }
+    if (value.trim()) {
+      nextPatterns[field as keyof NonNullable<ParsingRule['config']['free_text_receiver_patterns']>] = value
+    } else {
+      delete nextPatterns[field as keyof NonNullable<ParsingRule['config']['free_text_receiver_patterns']>]
+    }
+    updateConfig({ free_text_receiver_patterns: nextPatterns })
+  }
+
+  const setSkuFieldIndex = (field: keyof ShipmentData, value: string) => {
+    const nextFields = { ...(config.free_text_sku_fields || {}) }
+    const typedField = field as keyof NonNullable<ParsingRule['config']['free_text_sku_fields']>
+    if (value === '') {
+      delete nextFields[typedField]
+    } else {
+      nextFields[typedField] = Math.max(1, Number(value) || 1)
+    }
+    updateConfig({ free_text_sku_fields: nextFields })
+  }
+
+  const updateSequenceItem = (patch: Partial<NonNullable<ParsingRule['config']['free_text_sequence_item']>>) => {
+    updateConfig({
+      free_text_sequence_item: {
+        item_start_pattern: '',
+        sku_code_pattern: '',
+        ...(config.free_text_sequence_item || {}),
+        ...patch,
+      },
+    })
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-[#d0e8e8] bg-white p-4">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold text-gray-800">可视化规则编辑</h4>
+          <p className="mt-1 text-xs text-gray-500">
+            优先改这里：填写表头名称、正则或默认值后，系统会自动同步到底层规则。
+          </p>
+        </div>
+        <span className="rounded-full bg-[#e8fafa] px-3 py-1 text-xs font-medium text-[#0b6e6e]">
+          {isTextRule ? '文本/PDF 规则' : 'Excel 规则'}
+        </span>
+      </div>
+
+      {!isTextRule && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <label className="text-sm text-gray-700">
+              表头所在行
+              <input
+                type="number"
+                min={1}
+                value={config.header_row_index === undefined ? '' : config.header_row_index + 1}
+                onChange={(e) => setRowIndex('header_row_index', e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="如 1"
+              />
+            </label>
+            <label className="text-sm text-gray-700">
+              数据开始行
+              <input
+                type="number"
+                min={1}
+                value={config.data_start_row_index === undefined ? '' : config.data_start_row_index + 1}
+                onChange={(e) => setRowIndex('data_start_row_index', e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="如 2"
+              />
+            </label>
+            <label className="text-sm text-gray-700">
+              结束标记
+              <input
+                type="text"
+                value={config.data_end_marker || ''}
+                onChange={(e) => updateConfig({ data_end_marker: e.target.value || undefined })}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="如 合计"
+              />
+            </label>
+          </div>
+
+          <label className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={!!config.merge_sheets}
+              onChange={(e) => updateConfig({ merge_sheets: e.target.checked || undefined })}
+              className="h-4 w-4 rounded border-gray-300 text-[#0fc6c2] focus:ring-[#0fc6c2]"
+            />
+            多 Sheet 合并解析
+          </label>
+
+          <div>
+            <div className="mb-2 text-sm font-medium text-gray-700">字段对应的 Excel 表头</div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {EDITABLE_FIELDS.map((field) => (
+                <label key={field} className="text-sm text-gray-700">
+                  {FIELD_DISPLAY_NAMES[field] || field}
+                  <input
+                    type="text"
+                    value={config.column_mappings?.[field] || ''}
+                    onChange={(e) => setColumnMapping(field, e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                    placeholder={`如：${FIELD_DISPLAY_NAMES[field] || field}`}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="text-sm text-gray-700">
+              单号聚合字段
+              <select
+                value={config.group_by_field || ''}
+                onChange={(e) => updateConfig({ group_by_field: (e.target.value || undefined) as keyof ShipmentData | undefined })}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+              >
+                <option value="">不聚合</option>
+                {COMMON_GROUP_FIELDS.map((field) => (
+                  <option key={field} value={field}>{FIELD_DISPLAY_NAMES[field] || field}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-gray-700">
+              每行至少有值的单元格数
+              <input
+                type="number"
+                min={1}
+                value={config.min_filled_cells ?? ''}
+                onChange={(e) => updateConfig({ min_filled_cells: e.target.value === '' ? undefined : Math.max(1, Number(e.target.value) || 1) })}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="默认 1"
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {isTextRule && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="text-sm text-gray-700">
+              订单分隔符
+              <input
+                type="text"
+                value={config.record_separator || ''}
+                onChange={(e) => updateConfig({ record_separator: e.target.value || undefined })}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="如：--------"
+              />
+            </label>
+            <label className="text-sm text-gray-700">
+              SKU 行正则
+              <input
+                type="text"
+                value={config.free_text_sku_pattern || ''}
+                onChange={(e) => updateConfig({ free_text_sku_pattern: e.target.value || undefined })}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="如：(\\S+)\\s+(.+?)\\s+(\\d+)"
+              />
+            </label>
+          </div>
+
+          <div>
+            <div className="mb-2 text-sm font-medium text-gray-700">收货信息识别正则</div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {COMMON_GROUP_FIELDS.map((field) => (
+                <label key={field} className="text-sm text-gray-700">
+                  {FIELD_DISPLAY_NAMES[field] || field}
+                  <input
+                    type="text"
+                    value={config.free_text_receiver_patterns?.[field as keyof NonNullable<ParsingRule['config']['free_text_receiver_patterns']>] || ''}
+                    onChange={(e) => setReceiverPattern(field, e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                    placeholder={`如：${FIELD_DISPLAY_NAMES[field] || field}[:：]\\s*(.+)`}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-sm font-medium text-gray-700">SKU 正则分组序号</div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              {(['sku_code', 'sku_name', 'sku_spec', 'sku_quantity', 'remark'] as (keyof ShipmentData)[]).map((field) => (
+                <label key={field} className="text-sm text-gray-700">
+                  {FIELD_DISPLAY_NAMES[field] || field}
+                  <input
+                    type="number"
+                    min={1}
+                    value={config.free_text_sku_fields?.[field as keyof NonNullable<ParsingRule['config']['free_text_sku_fields']>] || ''}
+                    onChange={(e) => setSkuFieldIndex(field, e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                    placeholder="1"
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">例如正则里第 1 个括号是 SKU 编码，就填 1。</p>
+          </div>
+
+          <details className="rounded-lg border border-gray-100 bg-gray-50">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-700">
+              连续多行 SKU 识别设置
+            </summary>
+            <div className="grid grid-cols-1 gap-3 border-t border-gray-100 p-3 md:grid-cols-2">
+              <label className="text-sm text-gray-700">
+                SKU 起始行正则
+                <input
+                  type="text"
+                  value={config.free_text_sequence_item?.item_start_pattern || ''}
+                  onChange={(e) => updateSequenceItem({ item_start_pattern: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                  placeholder="如：^\\d+、"
+                />
+              </label>
+              <label className="text-sm text-gray-700">
+                SKU 编码正则
+                <input
+                  type="text"
+                  value={config.free_text_sequence_item?.sku_code_pattern || ''}
+                  onChange={(e) => updateSequenceItem({ sku_code_pattern: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                  placeholder="如：[A-Z0-9-]{6,}"
+                />
+              </label>
+              <label className="text-sm text-gray-700">
+                名称偏移行
+                <input
+                  type="number"
+                  value={config.free_text_sequence_item?.sku_name_offset ?? ''}
+                  onChange={(e) => updateSequenceItem({ sku_name_offset: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                  placeholder="如 1"
+                />
+              </label>
+              <label className="text-sm text-gray-700">
+                规格最多读取行数
+                <input
+                  type="number"
+                  min={1}
+                  value={config.free_text_sequence_item?.sku_spec_max_lines ?? ''}
+                  onChange={(e) => updateSequenceItem({ sku_spec_max_lines: e.target.value === '' ? undefined : Math.max(1, Number(e.target.value) || 1) })}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                  placeholder="如 1"
+                />
+              </label>
+            </div>
+          </details>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <div className="mb-2 text-sm font-medium text-gray-700">默认值（识别不到时使用）</div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {COMMON_GROUP_FIELDS.map((field) => (
+            <label key={field} className="text-sm text-gray-700">
+              {FIELD_DISPLAY_NAMES[field] || field}
+              <input
+                type="text"
+                value={String(config.default_values?.[field] ?? '')}
+                onChange={(e) => setDefaultValue(field, e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+                placeholder="可留空"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

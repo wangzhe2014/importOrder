@@ -1,7 +1,8 @@
-﻿'use client'
+'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Copy, Trash2, Edit3, X, RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import { Copy, Edit3, FileStack, Layers3, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
 import { FIELD_DISPLAY_NAMES, ParsingConfig, ParsingRule, ShipmentData } from '@/types'
 
 const VISUAL_MAPPING_FIELDS: (keyof ShipmentData)[] = [
@@ -17,19 +18,40 @@ const VISUAL_MAPPING_FIELDS: (keyof ShipmentData)[] = [
   'remark',
 ]
 
+const STRUCTURE_TYPE_LABELS: Record<ParsingRule['structure_type'], string> = {
+  standard: '标准表格',
+  matrix: '矩阵转置',
+  card: '卡片式',
+  free_text: '纯文本',
+}
+
+const FILE_TYPE_LABELS: Record<ParsingRule['file_type'], string> = {
+  excel: 'Excel',
+  word: 'Word',
+  pdf: 'PDF',
+}
+
 export function RuleCenter() {
   const [rules, setRules] = useState<ParsingRule[]>([])
   const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [showNewRuleModal, setShowNewRuleModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [deleteRuleName, setDeleteRuleName] = useState<string | null>(null)
   const [selectedRule, setSelectedRule] = useState<ParsingRule | null>(null)
-  const [newRule, setNewRule] = useState<ParsingRule>({
-    name: '',
-    description: '',
-    file_type: 'excel',
-    structure_type: 'standard',
-    config: {}
-  })
+  const [newRule, setNewRule] = useState<ParsingRule>(createEmptyRule())
+
+  const summary = useMemo(() => {
+    const excelCount = rules.filter(rule => rule.file_type === 'excel').length
+    const textCount = rules.filter(rule => rule.file_type === 'word' || rule.file_type === 'pdf').length
+    const complexCount = rules.filter(rule => rule.structure_type !== 'standard').length
+    return {
+      total: rules.length,
+      excelCount,
+      textCount,
+      complexCount,
+    }
+  }, [rules])
 
   useEffect(() => {
     fetchRules()
@@ -37,64 +59,67 @@ export function RuleCenter() {
 
   const fetchRules = async () => {
     setLoading(true)
+    setErrorMessage('')
     try {
       const response = await fetch('/api/rules')
       const data = await response.json()
-      setRules(Array.isArray(data) ? data : (data.rules || []))
+      setRules(Array.isArray(data) ? data : data.rules || [])
     } catch (error) {
       console.error('Failed to fetch rules:', error)
+      setErrorMessage('规则列表加载失败，请稍后重试')
     } finally {
       setLoading(false)
     }
   }
 
   const resetNewRule = () => {
-    setNewRule({
-      name: '',
-      description: '',
-      file_type: 'excel',
-      structure_type: 'standard',
-      config: {}
-    })
+    setNewRule(createEmptyRule())
   }
 
   const handleSaveRule = async (rule: ParsingRule) => {
+    setErrorMessage('')
     try {
       const response = await fetch('/api/rules', {
         method: rule.id ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rule),
       })
 
       const result = await response.json()
-      if (result.success) {
-        fetchRules()
-        setShowNewRuleModal(false)
-        setShowEditModal(false)
-        setSelectedRule(null)
-        resetNewRule()
+      if (!response.ok || result.error) {
+        setErrorMessage(result.error || '规则保存失败')
+        return
       }
+
+      await fetchRules()
+      setShowNewRuleModal(false)
+      setShowEditModal(false)
+      setSelectedRule(null)
+      resetNewRule()
     } catch (error) {
       console.error('Failed to save rule:', error)
+      setErrorMessage('规则保存失败，请检查配置后重试')
     }
   }
 
   const handleDeleteRule = async (ruleName: string) => {
-    if (!confirm(`纭畾瑕佸垹闄よ鍒?"${ruleName}" 鍚楋紵`)) return
-
+    setErrorMessage('')
     try {
       const response = await fetch(`/api/rules?name=${encodeURIComponent(ruleName)}`, {
         method: 'DELETE',
       })
 
       const result = await response.json()
-      if (result.success) {
-        fetchRules()
+      if (!response.ok || result.error) {
+        setErrorMessage(result.error || '规则删除失败')
+        return
       }
+
+      await fetchRules()
+      setDeleteRuleName(null)
     } catch (error) {
       console.error('Failed to delete rule:', error)
+      setErrorMessage('规则删除失败，请稍后重试')
     }
   }
 
@@ -102,8 +127,8 @@ export function RuleCenter() {
     const copiedRule: ParsingRule = {
       ...rule,
       id: undefined,
-      name: `${rule.name} (鍓湰)`,
-      description: rule.description ? `${rule.description} (澶嶅埗)` : undefined,
+      name: `${rule.name}（副本）`,
+      description: rule.description ? `${rule.description}（复制）` : undefined,
     }
     setSelectedRule(copiedRule)
     setShowEditModal(true)
@@ -119,112 +144,97 @@ export function RuleCenter() {
     setShowEditModal(true)
   }
 
-  const structureTypeLabels: Record<string, string> = {
-    standard: '标准表格',
-    matrix: '矩阵转置',
-    card: '卡片式',
-    free_text: '纯文本',
-  }
-
-  const fileTypeLabels: Record<string, string> = {
-    excel: 'Excel',
-    word: 'Word',
-    pdf: 'PDF'
-  }
-
   return (
     <div className="space-y-6">
       <div className="jt-panel p-5 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="jt-eyebrow">Rule Center</p>
-            <h2 className="mt-1 text-xl font-bold text-[#1d2129]">瑙ｆ瀽瑙勫垯绠＄悊</h2>
+            <h2 className="mt-1 text-xl font-bold text-[#1d2129]">解析规则管理</h2>
             <p className="mt-2 text-sm text-[#86909c]">
-              绠＄悊鎵€鏈夋枃浠惰В鏋愯鍒欙紝鏀寔鍒涘缓銆佺紪杈戙€佸鍒跺拰鍒犻櫎銆?
+              管理所有文件解析规则，支持创建、编辑、复制和删除。
             </p>
           </div>
           <button
             onClick={handleOpenNewModal}
             className="jt-btn-primary flex items-center justify-center gap-2 px-4 py-2"
           >
-            <Plus className="w-5 h-5" />
-            鏂板缓瑙勫垯
+            <Plus className="h-5 w-5" />
+            新建规则
           </button>
         </div>
       </div>
 
+      {errorMessage && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <RuleSummaryCard icon={FileStack} label="规则总数" value={summary.total} suffix="条" />
+        <RuleSummaryCard icon={Layers3} label="Excel 规则" value={summary.excelCount} suffix="条" />
+        <RuleSummaryCard icon={Sparkles} label="Word/PDF 规则" value={summary.textCount} suffix="条" />
+        <RuleSummaryCard icon={Edit3} label="复杂结构规则" value={summary.complexCount} suffix="条" />
+      </div>
+
       {loading ? (
         <div className="jt-panel flex items-center justify-center py-12">
-          <RefreshCw className="w-8 h-8 text-[#0fc6c2] animate-spin" />
+          <RefreshCw className="h-8 w-8 animate-spin text-[#0fc6c2]" />
         </div>
       ) : rules.length === 0 ? (
-        <div className="jt-panel text-center py-12 border-dashed border-[#d0e8e8]">
-          <div className="w-16 h-16 mx-auto mb-4 bg-[#e8fafa] rounded-full flex items-center justify-center">
-            <Edit3 className="w-8 h-8 text-[#0fc6c2]" />
+        <div className="jt-panel border-dashed border-[#d0e8e8] py-12 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#e8fafa]">
+            <Edit3 className="h-8 w-8 text-[#0fc6c2]" />
           </div>
-          <p className="text-[#86909c] mb-4">鏆傛棤瑙ｆ瀽瑙勫垯</p>
-          <button
-            onClick={handleOpenNewModal}
-            className="jt-btn-primary px-6 py-2"
-          >
-            鍒涘缓绗竴鏉¤鍒?
+          <p className="mb-4 text-[#86909c]">暂无解析规则</p>
+          <button onClick={handleOpenNewModal} className="jt-btn-primary px-6 py-2">
+            创建第一条规则
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {rules.map((rule) => (
-            <div
-              key={rule.id || rule.name}
-              className="jt-card p-5"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    rule.structure_type === 'standard' ? 'bg-blue-100 text-blue-700' :
-                    rule.structure_type === 'matrix' ? 'bg-purple-100 text-purple-700' :
-                    rule.structure_type === 'card' ? 'bg-orange-100 text-orange-700' :
-                    'bg-green-100 text-green-700'
+            <div key={rule.id || rule.name} className="jt-card p-5">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                    rule.structure_type === 'standard'
+                      ? 'bg-blue-100 text-blue-700'
+                      : rule.structure_type === 'matrix'
+                        ? 'bg-purple-100 text-purple-700'
+                        : rule.structure_type === 'card'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-green-100 text-green-700'
                   }`}>
-                    {structureTypeLabels[rule.structure_type]}
+                    {STRUCTURE_TYPE_LABELS[rule.structure_type]}
                   </span>
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                    {fileTypeLabels[rule.file_type]}
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
+                    {FILE_TYPE_LABELS[rule.file_type]}
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleCopyRule(rule)}
-                    className="p-1.5 text-gray-400 hover:text-[#0fc6c2] hover:bg-[#e8fafa] rounded transition-colors"
-                    title="澶嶅埗瑙勫垯"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleOpenEditModal(rule)}
-                    className="p-1.5 text-gray-400 hover:text-[#0fc6c2] hover:bg-[#e8fafa] rounded transition-colors"
-                    title="缂栬緫瑙勫垯"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteRule(rule.name)}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                    title="鍒犻櫎瑙勫垯"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <IconButton title="复制规则" onClick={() => handleCopyRule(rule)}>
+                    <Copy className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton title="编辑规则" onClick={() => handleOpenEditModal(rule)}>
+                    <Edit3 className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton title="删除规则" danger onClick={() => setDeleteRuleName(rule.name)}>
+                    <Trash2 className="h-4 w-4" />
+                  </IconButton>
                 </div>
               </div>
 
-              <h3 className="font-semibold text-[#1d2129] mb-2">{rule.name}</h3>
+              <h3 className="mb-2 font-semibold text-[#1d2129]">{rule.name}</h3>
               {rule.description && (
-                <p className="text-sm text-[#86909c] line-clamp-2">{rule.description}</p>
+                <p className="line-clamp-2 text-sm text-[#86909c]">{rule.description}</p>
               )}
 
-              <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="mt-4 border-t border-gray-100 pt-4">
                 <div className="flex items-center justify-between text-xs text-[#86909c]">
-                  <span>{rule.file_type.toUpperCase()} 鏂囦欢</span>
-                  <span>{Object.keys(rule.config).length} 项配置</span>
+                  <span>{FILE_TYPE_LABELS[rule.file_type]} 文件</span>
+                  <span>{Object.keys(rule.config || {}).length} 项配置</span>
                 </div>
               </div>
             </div>
@@ -234,22 +244,34 @@ export function RuleCenter() {
 
       {showNewRuleModal && (
         <RuleEditorModal
-          title="鏂板缓瑙ｆ瀽瑙勫垯"
+          title="新建解析规则"
           rule={newRule}
           onChange={setNewRule}
           onCancel={() => setShowNewRuleModal(false)}
           onSave={() => handleSaveRule(newRule)}
-          saveDisabled={!newRule.name}
+          saveDisabled={!newRule.name.trim()}
         />
       )}
 
       {showEditModal && selectedRule && (
         <RuleEditorModal
-          title="缂栬緫瑙ｆ瀽瑙勫垯"
+          title="编辑解析规则"
           rule={selectedRule}
           onChange={setSelectedRule}
-          onCancel={() => { setShowEditModal(false); setSelectedRule(null) }}
+          onCancel={() => {
+            setShowEditModal(false)
+            setSelectedRule(null)
+          }}
           onSave={() => handleSaveRule(selectedRule)}
+          saveDisabled={!selectedRule.name.trim()}
+        />
+      )}
+
+      {deleteRuleName && (
+        <ConfirmDeleteDialog
+          ruleName={deleteRuleName}
+          onCancel={() => setDeleteRuleName(null)}
+          onConfirm={() => handleDeleteRule(deleteRuleName)}
         />
       )}
     </div>
@@ -291,48 +313,48 @@ function RuleEditorModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
-        <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 md:p-6">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 md:px-6">
           <h3 className="text-xl font-bold text-[#1d2129]">{title}</h3>
           <button
             onClick={onCancel}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 md:px-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">瑙勫垯鍚嶇О *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">规则名称 *</label>
             <input
               type="text"
               value={rule.name}
-              onChange={(e) => onChange({ ...rule, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0fc6c2] focus:border-transparent"
-              placeholder="杈撳叆瑙勫垯鍚嶇О"
+              onChange={(event) => onChange({ ...rule, name: event.target.value })}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+              placeholder="请输入规则名称"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">鎻忚堪</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">描述</label>
             <textarea
               value={rule.description || ''}
-              onChange={(e) => onChange({ ...rule, description: e.target.value })}
+              onChange={(event) => onChange({ ...rule, description: event.target.value })}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0fc6c2] focus:border-transparent"
-              placeholder="鎻忚堪姝よ鍒欓€傜敤鐨勬枃浠剁壒寰?.."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+              placeholder="描述此规则适用的文件特征"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">鏂囦欢绫诲瀷 *</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">文件类型 *</label>
               <select
                 value={rule.file_type}
-                onChange={(e) => onChange({ ...rule, file_type: e.target.value as ParsingRule['file_type'] })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0fc6c2] focus:border-transparent"
+                onChange={(event) => onChange({ ...rule, file_type: event.target.value as ParsingRule['file_type'] })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
               >
                 <option value="excel">Excel</option>
                 <option value="word">Word</option>
@@ -341,11 +363,11 @@ function RuleEditorModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">缁撴瀯绫诲瀷 *</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">结构类型 *</label>
               <select
                 value={rule.structure_type}
-                onChange={(e) => onChange({ ...rule, structure_type: e.target.value as ParsingRule['structure_type'] })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0fc6c2] focus:border-transparent"
+                onChange={(event) => onChange({ ...rule, structure_type: event.target.value as ParsingRule['structure_type'] })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
               >
                 <option value="standard">标准表格</option>
                 <option value="matrix">矩阵转置</option>
@@ -356,7 +378,7 @@ function RuleEditorModal({
           </div>
 
           <div className="rounded-xl border border-[#d0e8e8] bg-[#f7ffff] p-4">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm font-semibold text-[#0b6e6e]">常用配置</p>
                 <p className="text-xs text-[#667085]">优先用表单配置，复杂场景可继续编辑下方 JSON。</p>
@@ -375,28 +397,18 @@ function RuleEditorModal({
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <label className="text-sm text-[#4e5969]">
-                表头行号
-                <input
-                  type="number"
-                  min={0}
-                  value={config.header_row_index ?? ''}
-                  onChange={(event) => updateOptionalNumber('header_row_index', event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
-                  placeholder="如 0"
-                />
-              </label>
-              <label className="text-sm text-[#4e5969]">
-                数据起始行号
-                <input
-                  type="number"
-                  min={0}
-                  value={config.data_start_row_index ?? ''}
-                  onChange={(event) => updateOptionalNumber('data_start_row_index', event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
-                  placeholder="如 1"
-                />
-              </label>
+              <RuleNumberInput
+                label="表头行号"
+                value={config.header_row_index}
+                placeholder="如 0"
+                onChange={(value) => updateOptionalNumber('header_row_index', value)}
+              />
+              <RuleNumberInput
+                label="数据起始行号"
+                value={config.data_start_row_index}
+                placeholder="如 1"
+                onChange={(value) => updateOptionalNumber('data_start_row_index', value)}
+              />
               <label className="text-sm text-[#4e5969]">
                 结束标记
                 <input
@@ -427,38 +439,39 @@ function RuleEditorModal({
               </div>
             </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">规则配置（JSON）</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">规则配置（JSON）</label>
             <textarea
               value={JSON.stringify(rule.config, null, 2)}
-              onChange={(e) => {
+              onChange={(event) => {
                 try {
-                  const config = JSON.parse(e.target.value)
-                  onChange({ ...rule, config })
+                  const nextConfig = JSON.parse(event.target.value)
+                  onChange({ ...rule, config: nextConfig })
                 } catch {
-                  // Invalid JSON, keep previous value
+                  // 输入中的 JSON 可能暂时不合法，保留上一次有效配置。
                 }
               }}
-              rows={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0fc6c2] focus:border-transparent font-mono text-sm"
+              rows={10}
+              className="max-h-[45vh] min-h-56 w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
               placeholder="{}"
             />
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+        <div className="flex justify-end gap-3 border-t border-gray-100 px-5 py-4 md:px-6">
           <button
             onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50"
           >
-            鍙栨秷
+            取消
           </button>
           <button
             onClick={onSave}
             disabled={saveDisabled}
-            className="jt-btn-primary px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="jt-btn-primary px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            淇濆瓨瑙勫垯
+            保存规则
           </button>
         </div>
       </div>
@@ -466,3 +479,127 @@ function RuleEditorModal({
   )
 }
 
+function IconButton({
+  title,
+  danger = false,
+  onClick,
+  children,
+}: {
+  title: string
+  danger?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded p-1.5 transition-colors ${
+        danger
+          ? 'text-gray-400 hover:bg-red-50 hover:text-red-500'
+          : 'text-gray-400 hover:bg-[#e8fafa] hover:text-[#0fc6c2]'
+      }`}
+      title={title}
+    >
+      {children}
+    </button>
+  )
+}
+
+function RuleSummaryCard({
+  icon: Icon,
+  label,
+  value,
+  suffix,
+}: {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value: number
+  suffix: string
+}) {
+  return (
+    <div className="rounded-xl border border-[#d0e8e8] bg-[#f7ffff] p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-[#667085]">{label}</span>
+        <Icon className="h-4 w-4 text-[#0fc6c2]" />
+      </div>
+      <div className="mt-2 text-2xl font-semibold text-[#1d2129]">
+        {value}
+        <span className="ml-1 text-sm font-normal text-[#86909c]">{suffix}</span>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmDeleteDialog({
+  ruleName,
+  onCancel,
+  onConfirm,
+}: {
+  ruleName: string
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+          <Trash2 className="h-6 w-6" />
+        </div>
+        <h3 className="text-lg font-semibold text-[#1d2129]">删除解析规则</h3>
+        <p className="mt-2 text-sm leading-6 text-[#667085]">
+          确定要删除规则「{ruleName}」吗？删除后如果未同步到数据库，将无法在本地规则文件中恢复。
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-lg bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
+          >
+            确认删除
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RuleNumberInput({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string
+  value?: number
+  placeholder: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="text-sm text-[#4e5969]">
+      {label}
+      <input
+        type="number"
+        min={0}
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-[#0fc6c2]"
+        placeholder={placeholder}
+      />
+    </label>
+  )
+}
+
+function createEmptyRule(): ParsingRule {
+  return {
+    name: '',
+    description: '',
+    file_type: 'excel',
+    structure_type: 'standard',
+    config: {},
+  }
+}
