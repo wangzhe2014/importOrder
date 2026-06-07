@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { ShipmentData, ImportResult } from '@/types'
 
+const INSERT_CHUNK_SIZE = 500
+
 // Helper to map DB row to V2 format (if DB contains V1 columns, auto map them to V2)
 function mapRowToV2(row: any): ShipmentData {
   const isV1 = row.sender_name !== undefined && row.sender_address !== undefined
@@ -260,54 +262,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '必须包含要导入的运单数组' }, { status: 400 })
     }
     
-    const result: ImportResult = {
-      success: 0,
-      failed: 0,
-      failedRows: [],
-      failedReasons: []
-    }
-
-    const v2Rows = shipments.map(mapShipmentToV2Insert)
-    const { error: v2Error } = await supabase
-      .from('shipments')
-      .insert(v2Rows)
-
-    if (!v2Error) {
-      result.success = shipments.length
-      return NextResponse.json(result)
-    }
-
-    const shouldFallbackToV1 =
-      v2Error.message.includes('sku_code') ||
-      v2Error.message.includes('store_name') ||
-      v2Error.code === 'PGRST204'
-
-    if (!shouldFallbackToV1) {
-      result.failed = shipments.length
-      result.failedRows = shipments.map((_, index) => index)
-      result.failedReasons?.push({
-        message: v2Error.message || '数据库批量写入失败',
-      })
-      return NextResponse.json(result)
-    }
-
-    console.warn('V2 table insert failed due to column mapping. Switching to V1 fallback schema.')
-
-    const v1Rows = shipments.map(mapShipmentToV1Insert)
-    const { error: v1Error } = await supabase
-      .from('shipments')
-      .insert(v1Rows)
-
-    if (v1Error) {
-      result.failed = shipments.length
-      result.failedRows = shipments.map((_, index) => index)
-      result.failedReasons?.push({
-        message: `V2 表结构不可用，V1 兼容批量写入也失败：${v1Error.message}`,
-      })
-    } else {
-      result.success = shipments.length
-    }
-
+    const result = await insertShipmentsInChunks(shipments)
     return NextResponse.json(result)
     
     /*
@@ -431,6 +386,77 @@ export async function DELETE(request: NextRequest) {
       error: `删除失败: ${(error as Error).message || '未知错误'}` 
     }, { status: 500 })
   }
+}
+
+async function insertShipmentsInChunks(shipments: ShipmentData[]): Promise<ImportResult> {
+  const result: ImportResult = {
+    success: 0,
+    failed: 0,
+    failedRows: [],
+    failedReasons: []
+  }
+  let useV1Fallback = false
+
+  for (let start = 0; start < shipments.length; start += INSERT_CHUNK_SIZE) {
+    const end = Math.min(start + INSERT_CHUNK_SIZE, shipments.length)
+    const chunk = shipments.slice(start, end)
+
+    if (!useV1Fallback) {
+      const { error: v2Error } = await supabase
+        .from('shipments')
+        .insert(chunk.map(mapShipmentToV2Insert))
+
+      if (!v2Error) {
+        result.success += chunk.length
+        continue
+      }
+
+      if (shouldFallbackToV1(v2Error)) {
+        useV1Fallback = true
+        console.warn('V2 table insert failed due to column mapping. Switching to V1 fallback schema.')
+      } else {
+        appendChunkFailure(result, start, end, v2Error.message || '数据库分批写入失败')
+        continue
+      }
+    }
+
+    const { error: v1Error } = await supabase
+      .from('shipments')
+      .insert(chunk.map(mapShipmentToV1Insert))
+
+    if (v1Error) {
+      appendChunkFailure(result, start, end, `V1 兼容写入失败：${v1Error.message}`)
+    } else {
+      result.success += chunk.length
+    }
+  }
+
+  if (result.failed > 0) {
+    result.error = result.success > 0 ? '部分批次写入失败' : '所有批次写入失败'
+  }
+
+  return result
+}
+
+function shouldFallbackToV1(error: { message?: string; code?: string }) {
+  return Boolean(
+    error.message?.includes('sku_code') ||
+    error.message?.includes('store_name') ||
+    error.code === 'PGRST204'
+  )
+}
+
+function appendChunkFailure(result: ImportResult, start: number, end: number, message: string) {
+  const rowStart = start + 1
+  const rowEnd = end
+  result.failed += end - start
+  for (let index = start; index < end; index++) {
+    result.failedRows.push(index + 1)
+  }
+  result.failedReasons?.push({
+    rowIndex: rowStart,
+    message: `第 ${rowStart}-${rowEnd} 行写入失败：${message}`,
+  })
 }
 
 function mapShipmentToV2Insert(row: ShipmentData) {

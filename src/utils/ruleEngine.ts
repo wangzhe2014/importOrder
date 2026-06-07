@@ -128,6 +128,58 @@ function normalizeParsedRows(rows: ShipmentData[], config: ParsingConfig): Shipm
   })
 }
 
+function resolveHeaderAndDataStart(
+  sheetData: string[][],
+  config: ParsingConfig,
+  configuredHeaderRowIndex: number,
+  configuredDataStartRowIndex: number,
+  mappings: Record<string, string>
+) {
+  const expectedHeaders = Object.values(mappings)
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+
+  if (expectedHeaders.length === 0) {
+    return {
+      headerRowIndex: configuredHeaderRowIndex,
+      dataStartRowIndex: configuredDataStartRowIndex,
+      headers: sheetData[configuredHeaderRowIndex]?.map(h => String(h || '').trim()) || [],
+    }
+  }
+
+  const candidateRows = new Set<number>([
+    configuredHeaderRowIndex,
+    configuredHeaderRowIndex - 1,
+    configuredHeaderRowIndex + 1,
+  ])
+  const scanLimit = Math.min(sheetData.length, Math.max(8, configuredDataStartRowIndex + 3))
+  for (let rowIndex = 0; rowIndex < scanLimit; rowIndex++) {
+    candidateRows.add(rowIndex)
+  }
+
+  let bestHeaderRowIndex = configuredHeaderRowIndex
+  let bestScore = -1
+
+  candidateRows.forEach((rowIndex) => {
+    if (rowIndex < 0 || rowIndex >= sheetData.length) return
+    const headers = sheetData[rowIndex]?.map(h => String(h || '').trim()) || []
+    const score = expectedHeaders.reduce((sum, header) => sum + (headers.includes(header) ? 1 : 0), 0)
+    if (score > bestScore) {
+      bestScore = score
+      bestHeaderRowIndex = rowIndex
+    }
+  })
+
+  const dataOffset = Math.max(1, configuredDataStartRowIndex - configuredHeaderRowIndex)
+  return {
+    headerRowIndex: bestHeaderRowIndex,
+    dataStartRowIndex: bestHeaderRowIndex === configuredHeaderRowIndex
+      ? configuredDataStartRowIndex
+      : bestHeaderRowIndex + dataOffset,
+    headers: sheetData[bestHeaderRowIndex]?.map(h => String(h || '').trim()) || [],
+  }
+}
+
 export function parseExcelWithRule(sheets: { name: string; data: string[][] }[], rule: ParsingRule): ShipmentData[] {
   const results: ShipmentData[] = []
   const { config } = rule
@@ -151,11 +203,17 @@ export function parseExcelWithRule(sheets: { name: string; data: string[][] }[],
     if (rule.structure_type === 'standard') {
       const headerRowIndex = config.header_row_index ?? 0
       const dataStartRowIndex = config.data_start_row_index ?? (headerRowIndex + 1)
-      const headers = sheetData[headerRowIndex]?.map(h => String(h || '').trim()) || []
-      
       const colMappings = config.column_mappings || {}
+      const resolvedTable = resolveHeaderAndDataStart(
+        sheetData,
+        config,
+        headerRowIndex,
+        dataStartRowIndex,
+        colMappings
+      )
+      const headers = resolvedTable.headers
       
-      for (let r = dataStartRowIndex; r < sheetData.length; r++) {
+      for (let r = resolvedTable.dataStartRowIndex; r < sheetData.length; r++) {
         const row = sheetData[r]
         if (!row) continue
         

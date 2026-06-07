@@ -58,6 +58,7 @@ const TARGET_FIELDS: (keyof ShipmentData)[] = [
   'sku_spec',
   'remark',
 ]
+const DEFAULT_LLM_TIMEOUT_MS = 20_000
 
 export async function POST(request: NextRequest) {
   try {
@@ -95,6 +96,7 @@ async function tryGenerateWithLlm(payload: ParsedFilePayload) {
 
   const baseUrl = process.env.LLM_BASE_URL || 'https://api.deepseek.com/v1'
   const model = process.env.LLM_MODEL || 'deepseek-chat'
+  const timeoutMs = Number(process.env.LLM_TIMEOUT_MS || DEFAULT_LLM_TIMEOUT_MS)
   const sample = buildSample(payload)
   const demoContext = await buildDemoReferenceContext(payload.type)
 
@@ -127,9 +129,16 @@ store_columns_start, store_columns_end, sku_fields_mapping,
 card_start_pattern, card_receiver_offsets,
 free_text_receiver_patterns, free_text_sequence_item。`
 
+  const controller = new AbortController()
+  const timeout = setTimeout(
+    () => controller.abort(),
+    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_LLM_TIMEOUT_MS
+  )
+
   try {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
@@ -184,6 +193,8 @@ free_text_receiver_patterns, free_text_sequence_item。`
   } catch (error) {
     console.error('LLM rule generation failed, fallback to heuristic:', error)
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 

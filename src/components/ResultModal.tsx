@@ -9,7 +9,7 @@ interface ResultModalProps {
 }
 
 export function ResultModal({ result, onClose, onRetry }: ResultModalProps) {
-  const hasFailures = result.failed > 0;
+  const hasFailures = result.failed > 0 || Boolean(result.error) || Boolean(result.failedReasons?.length);
   const reasonList = result.failedReasons?.length
     ? result.failedReasons
     : (result.error || result.message)

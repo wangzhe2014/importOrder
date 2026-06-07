@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { Trash2, Plus, Download, AlertTriangle, X } from 'lucide-react'
 import { PreviewRow, ShipmentData, FIELD_DISPLAY_NAMES, ImportError } from '@/types'
 import { validateRow, checkDuplicates, getAllErrors } from '@/utils/validator'
@@ -8,6 +8,8 @@ import { exportToExcel } from '@/utils/excelParser'
 
 // 虚拟滚动配置
 const CONTAINER_HEIGHT = 600 // 表格容器固定高度 (px)
+const ROW_HEIGHT = 44
+const OVERSCAN_ROWS = 8
 
 interface DataPreviewProps {
   rows: PreviewRow[]
@@ -19,9 +21,28 @@ interface DataPreviewProps {
 export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPreviewProps) {
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; field: keyof ShipmentData } | null>(null)
   const [showErrorsModal, setShowErrorsModal] = useState(false)
-  
+  const [scrollTop, setScrollTop] = useState(0)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const allErrors = getAllErrors(rows)
+  const fieldKeys = Object.keys(FIELD_DISPLAY_NAMES) as (keyof ShipmentData)[]
+  const visibleRange = useMemo(() => {
+    const visibleCount = Math.ceil(CONTAINER_HEIGHT / ROW_HEIGHT)
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN_ROWS)
+    const end = Math.min(rows.length, start + visibleCount + OVERSCAN_ROWS * 2)
+
+    return {
+      start,
+      end,
+      topSpacerHeight: start * ROW_HEIGHT,
+      bottomSpacerHeight: Math.max(0, (rows.length - end) * ROW_HEIGHT),
+    }
+  }, [rows.length, scrollTop])
+  const visibleRows = useMemo(
+    () => rows.slice(visibleRange.start, visibleRange.end),
+    [rows, visibleRange.start, visibleRange.end]
+  )
+
   const handleCellChange = useCallback((rowIndex: number, field: keyof ShipmentData, value: string) => {
     const newRows = [...rows]
     newRows[rowIndex] = {
@@ -35,6 +56,52 @@ export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPre
     const updatedRows = checkDuplicates(newRows)
     onRowsChange(updatedRows)
   }, [rows, onRowsChange])
+
+  const moveEditingCell = useCallback((
+    rowIndex: number,
+    field: keyof ShipmentData,
+    direction: 'next-cell' | 'previous-cell' | 'next-row' | 'previous-row'
+  ) => {
+    const fieldIndex = fieldKeys.indexOf(field)
+    let nextRowIndex = rowIndex
+    let nextFieldIndex = fieldIndex
+
+    if (direction === 'next-cell') {
+      nextFieldIndex = fieldIndex + 1
+      if (nextFieldIndex >= fieldKeys.length) {
+        nextFieldIndex = 0
+        nextRowIndex += 1
+      }
+    } else if (direction === 'previous-cell') {
+      nextFieldIndex = fieldIndex - 1
+      if (nextFieldIndex < 0) {
+        nextFieldIndex = fieldKeys.length - 1
+        nextRowIndex -= 1
+      }
+    } else if (direction === 'next-row') {
+      nextRowIndex += 1
+    } else {
+      nextRowIndex -= 1
+    }
+
+    if (nextRowIndex < 0 || nextRowIndex >= rows.length) {
+      setEditingCell(null)
+      return
+    }
+
+    const container = scrollContainerRef.current
+    if (container) {
+      const nextTop = nextRowIndex * ROW_HEIGHT
+      const nextBottom = nextTop + ROW_HEIGHT
+      if (nextTop < container.scrollTop) {
+        container.scrollTop = nextTop
+      } else if (nextBottom > container.scrollTop + CONTAINER_HEIGHT) {
+        container.scrollTop = nextBottom - CONTAINER_HEIGHT
+      }
+    }
+
+    setEditingCell({ rowIndex: nextRowIndex, field: fieldKeys[nextFieldIndex] })
+  }, [fieldKeys, rows.length])
 
   const handleDeleteRow = useCallback((rowIndex: number) => {
     const newRows = rows.filter((_, i) => i !== rowIndex)
@@ -86,8 +153,6 @@ export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPre
     return row.errors.find((e) => e.field === field)
   }
 
-  const fieldKeys = Object.keys(FIELD_DISPLAY_NAMES) as (keyof ShipmentData)[]
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -111,8 +176,10 @@ export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPre
       </div>
 
       <div 
+        ref={scrollContainerRef}
         className="overflow-x-auto overflow-y-auto scrollbar-thin"
         style={{ maxHeight: `${CONTAINER_HEIGHT}px`, position: 'relative' }}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       >
         <table className="w-full" style={{ minWidth: 'max-content' }}>
           <thead className="bg-gray-50 sticky top-0 z-10">
@@ -131,7 +198,13 @@ export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPre
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIndex) => {
+            {visibleRange.topSpacerHeight > 0 && (
+              <tr aria-hidden="true">
+                <td colSpan={fieldKeys.length + 2} style={{ height: visibleRange.topSpacerHeight, padding: 0, border: 0 }} />
+              </tr>
+            )}
+            {visibleRows.map((row, visibleIndex) => {
+              const rowIndex = visibleRange.start + visibleIndex
               
               return (
                 <tr
@@ -161,8 +234,12 @@ export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPre
                             onChange={(e) => handleCellChange(rowIndex, field, e.target.value)}
                             onBlur={() => setEditingCell(null)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                setEditingCell(null)
+                              if (e.key === 'Tab') {
+                                e.preventDefault()
+                                moveEditingCell(rowIndex, field, e.shiftKey ? 'previous-cell' : 'next-cell')
+                              } else if (e.key === 'Enter') {
+                                e.preventDefault()
+                                moveEditingCell(rowIndex, field, e.shiftKey ? 'previous-row' : 'next-row')
                               }
                             }}
                             autoFocus
@@ -199,6 +276,11 @@ export function DataPreview({ rows, onRowsChange, onSubmit, hasErrors }: DataPre
                 </tr>
               )
             })}
+            {visibleRange.bottomSpacerHeight > 0 && (
+              <tr aria-hidden="true">
+                <td colSpan={fieldKeys.length + 2} style={{ height: visibleRange.bottomSpacerHeight, padding: 0, border: 0 }} />
+              </tr>
+            )}
             
           </tbody>
         </table>

@@ -93,6 +93,7 @@ export default function Home() {
   const [loadingMessage, setLoadingMessage] = useState('')
   const [uploadProgress, setUploadProgress] = useState({ progress: 0, current: 0, total: 0 })
   const [fileParseError, setFileParseError] = useState('')
+  const [ruleParseError, setRuleParseError] = useState('')
   const [activeTab, setActiveTab] = useState<'upload' | 'shipments' | 'rules'>('upload')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const duplicateCheckRequestRef = useRef(0)
@@ -128,6 +129,7 @@ export default function Home() {
     setPreviewRows([])
     setImportResult(null)
     setFileParseError('')
+    setRuleParseError('')
   }, [])
 
   const applyDatabaseDuplicates = useCallback(async (rows: PreviewRow[]) => {
@@ -268,6 +270,8 @@ export default function Home() {
   const executeParse = useCallback((rule: ParsingRule) => {
     setLoading(true)
     setLoadingMessage('正在执行规则引擎...')
+    setRuleParseError('')
+    setImportResult(null)
     setUploadProgress({ progress: 20, current: 0, total: 0 })
 
     setTimeout(async () => {
@@ -281,15 +285,9 @@ export default function Home() {
         }
 
         if (results.length === 0) {
-          setImportResult({
-            success: 0,
-            failed: 0,
-            failedRows: [],
-            error: '规则没有解析出任何数据，请返回规则配置页调整规则后再试',
-            failedReasons: [{ message: '解析结果为空' }],
-          })
           setPreviewRows([])
-          setAppState('result')
+          setRuleParseError('规则没有解析出任何数据。请检查该规则的表头行、数据开始行和字段映射后再试。')
+          setAppState('select-rule')
           return
         }
 
@@ -309,7 +307,8 @@ export default function Home() {
           failedReasons: [{ message }],
         })
         setPreviewRows([])
-        setAppState('result')
+        setRuleParseError(`规则解析失败：${message}`)
+        setAppState('select-rule')
       } finally {
         setLoading(false)
       }
@@ -318,6 +317,7 @@ export default function Home() {
 
   const handleRuleSelect = useCallback((rule: ParsingRule) => {
     setSelectedRule(rule)
+    setRuleParseError('')
     executeParse(rule)
   }, [executeParse])
 
@@ -489,6 +489,11 @@ export default function Home() {
           <button onClick={resetImport} className="jt-link-button">
             返回重新上传
           </button>
+          {ruleParseError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {ruleParseError}
+            </div>
+          )}
           <RuleManager
             rules={rules}
             fileType={parsedData?.type || 'excel'}
