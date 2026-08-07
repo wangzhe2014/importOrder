@@ -5,6 +5,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { ShipmentData, ImportResult } from '@/types'
 
 const INSERT_CHUNK_SIZE = 500
+const LIST_COLUMNS = 'id,external_code,store_name,receiver_name,receiver_phone,receiver_address,sku_code,sku_name,sku_quantity,sku_spec,remark,created_at'
 
 // Helper to map DB row to V2 format (if DB contains V1 columns, auto map them to V2)
 function mapRowToV2(row: any): ShipmentData {
@@ -42,6 +43,15 @@ function mapRowToV2(row: any): ShipmentData {
     remark: row.remark || '',
     created_at: row.created_at
   }
+}
+
+function dateEndExclusive(dateValue: string): string {
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return dateValue
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    date.setDate(date.getDate() + 1)
+  }
+  return date.toISOString()
 }
 
 // GET /api/shipments - List shipments, search, check duplicates
@@ -171,7 +181,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (endDate) {
-        queryBuilder = queryBuilder.lte('created_at', endDate)
+        queryBuilder = queryBuilder.lt('created_at', dateEndExclusive(endDate))
       }
 
       return queryBuilder
@@ -179,7 +189,7 @@ export async function GET(request: NextRequest) {
     
     let query = supabase
       .from('shipments')
-      .select('*', { count: 'exact' })
+      .select(LIST_COLUMNS, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range((page - 1) * limit, page * limit - 1)
     query = applyListFilters(query)
@@ -225,7 +235,7 @@ async function loadShipmentSummary(
     const end = Math.min(start + chunkSize - 1, total - 1)
     let summaryQuery = supabase
       .from('shipments')
-      .select('*')
+      .select('store_name,sku_quantity')
       .range(start, end)
 
     summaryQuery = applyListFilters(summaryQuery)
@@ -235,7 +245,7 @@ async function loadShipmentSummary(
       throw error
     }
 
-    ;(data || []).map(mapRowToV2).forEach((row) => {
+    ;(data || []).forEach((row: any) => {
       const storeName = String(row.store_name || '').trim()
       if (storeName) {
         storeNames.add(storeName)

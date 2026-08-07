@@ -1,0 +1,8 @@
+
+> logistics-import@1.0.0 worker
+> tsx src/worker/index.ts
+
+[worker] 启动 - 队列后端: db
+[worker] Worker 并发: 2, 批次大小: 1000
+[worker] 就绪，等待任务...
+^C

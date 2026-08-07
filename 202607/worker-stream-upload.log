@@ -1,0 +1,728 @@
+
+> logistics-import@1.0.0 worker
+> tsx src/worker/index.ts
+
+[worker] 启动 - 队列后端: db
+[worker] Worker 并发: 2, 批次大小: 1000
+[worker] 就绪，等待任务...
+[db-queue] claimed 10: ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated
+[db-queue] claimed 1: ImportTaskCreated
+[db-queue] claimed 1: ImportTaskCreated
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[worker] recover_stale_batches 失败 {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms) (UND_ERR_CONNECT_TIMEOUT)\n' +
+    'ConnectTimeoutError: Connect Timeout Error (attempted address: wgklfgdzkaftnwvweboc.supabase.co:443, timeout: 10000ms)\n' +
+    '    at onConnectTimeout (node:internal/deps/undici/undici:1981:23)\n' +
+    '    at Immediate._onImmediate (node:internal/deps/undici/undici:1947:35)\n' +
+    '    at process.processImmediate (node:internal/timers:504:21)',
+  hint: '',
+  code: ''
+}
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] claimed 10: ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated, ImportBatchCreated
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+^C

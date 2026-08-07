@@ -1,0 +1,18 @@
+{
+  "testId": "loadtest_1785932763415",
+  "timestamp": "2026-08-05T12:26:27.442Z",
+  "durationMs": 24027,
+  "targetMet": true,
+  "metrics": {
+    "uploadP95Ms": 4114,
+    "taskPollCount": 7,
+    "totalRows": 10000,
+    "successRows": 9996,
+    "failedRows": 4,
+    "errorRate": 0.0004,
+    "finalStatus": "partial_success",
+    "workerBackend": "db",
+    "batchSize": 1000
+  },
+  "conclusion": "Total processing completed in 24027ms with 9996 successful rows and 4 expected invalid-SKU failures. Upload latency was 4114ms, above the 1000ms upload target."
+}

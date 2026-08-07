@@ -64,3 +64,4 @@ CREATE INDEX IF NOT EXISTS idx_shipments_external_code ON shipments(external_cod
 CREATE INDEX IF NOT EXISTS idx_shipments_receiver_name ON shipments(receiver_name);
 CREATE INDEX IF NOT EXISTS idx_shipments_store_name ON shipments(store_name);
 CREATE INDEX IF NOT EXISTS idx_shipments_created_at ON shipments(created_at);
+CREATE INDEX IF NOT EXISTS idx_shipments_created_at_desc ON shipments(created_at DESC);

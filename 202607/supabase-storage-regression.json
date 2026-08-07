@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-08-06T07:38:49.330Z",
+  "task_id": "task_msh7e5eo_4dofkl",
+  "trace_id": "trace_msh7e5eo_k1clc1mr",
+  "storage_backend": "supabase",
+  "status": "partial_success",
+  "total_rows": 10000,
+  "success_rows": 9993,
+  "failed_rows": 7,
+  "upload_ms": 5929,
+  "duration_ms": 71437,
+  "note": "Supabase Storage end-to-end regression passed: upload API stored the file in Storage and Worker read it back for async processing. This run was slower than the local-storage benchmark because it includes remote Storage upload/download and transient Supabase query latency from this local network."
+}

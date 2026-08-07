@@ -1,0 +1,19 @@
+
+> logistics-import@1.0.0 worker
+> tsx src/worker/index.ts
+
+[worker] 启动 - 队列后端: db
+[worker] Worker 并发: 2, 批次大小: 1000
+[worker] 就绪，等待任务...
+[processBatch] claim 失败 task_msg3zmbk_4lk86g undefined {
+  code: 'PGRST202',
+  details: 'Searched for the function public.claim_batch with parameters p_lock_timeout_minutes, p_task_id or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.',
+  hint: 'Perhaps you meant to call the function public.claim_batch(p_lock_timeout_minutes, p_task_id, p_unit_id)',
+  message: 'Could not find the function public.claim_batch(p_lock_timeout_minutes, p_task_id) in the schema cache'
+}
+[db-queue] worker-jfkk0t2w 任务处理失败 da2e068b-84db-47c9-a36f-495082cd3a62 {
+  code: 'PGRST202',
+  details: 'Searched for the function public.claim_batch with parameters p_lock_timeout_minutes, p_task_id or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.',
+  hint: 'Perhaps you meant to call the function public.claim_batch(p_lock_timeout_minutes, p_task_id, p_unit_id)',
+  message: 'Could not find the function public.claim_batch(p_lock_timeout_minutes, p_task_id) in the schema cache'
+}

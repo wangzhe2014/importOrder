@@ -6,10 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "worker": "tsx src/worker/index.ts",
+    "seed": "tsx scripts/seed-data.ts",
+    "loadtest": "tsx scripts/load-test.ts",
+    "test": "vitest run && node --test tests/v3-timeout.test.mjs",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.42.7",
+    "bullmq": "^6.0.7",
+    "ioredis": "^6.0.0",
     "lucide-react": "^0.378.0",
     "mammoth": "^1.12.0",
     "next": "^14.2.3",
@@ -18,6 +25,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "textract": "^2.5.0",
+    "tsx": "^4.23.5",
+    "vitest": "^4.1.10",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

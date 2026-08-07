@@ -1,0 +1,18 @@
+{
+  "testId": "loadtest_1785978783809",
+  "timestamp": "2026-08-06T01:13:24.691Z",
+  "durationMs": 20882,
+  "targetMet": true,
+  "metrics": {
+    "uploadP95Ms": 886,
+    "taskPollCount": 7,
+    "totalRows": 10000,
+    "successRows": 9996,
+    "failedRows": 4,
+    "errorRate": 0.0004,
+    "finalStatus": "partial_success",
+    "workerBackend": "db",
+    "batchSize": 1000
+  },
+  "conclusion": "Upload completed in 886ms and 10000 rows completed in 20882ms with 9996 successful rows and 4 expected invalid-SKU failures."
+}

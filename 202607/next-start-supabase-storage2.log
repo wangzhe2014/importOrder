@@ -1,0 +1,12 @@
+
+> logistics-import@1.0.0 start
+> next start -p 3002
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3002
+
+ ✓ Starting...
+ ✓ Ready in 782ms
+[import-tasks] 上传接口耗时 5132ms 超过 1s
+[import-tasks] 上传接口耗时 5796ms 超过 1s
+^C^C

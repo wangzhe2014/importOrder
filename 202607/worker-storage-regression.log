@@ -1,0 +1,63 @@
+
+> logistics-import@1.0.0 worker
+> tsx src/worker/index.ts
+
+[worker] 启动 - 队列后端: db
+[worker] Worker 并发: 2, 批次大小: 1000
+[worker] 就绪，等待任务...
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] 轮询出错 Error: event_queue select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\queue\db.ts:17:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[db-queue] worker-48r5hapf 任务处理失败 f0445d71-0a76-44d4-9bbc-6bc342baafba StorageApiError: Object not found
+    at <anonymous> (D:\trae\importOrder\node_modules\@supabase\storage-js\src\lib\common\fetch.ts:79:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  __isStorageError: true,
+  namespace: 'storage',
+  status: 400,
+  statusCode: '404'
+}
+[db-queue] worker-48r5hapf 任务处理失败 f0445d71-0a76-44d4-9bbc-6bc342baafba StorageApiError: Object not found
+    at <anonymous> (D:\trae\importOrder\node_modules\@supabase\storage-js\src\lib\common\fetch.ts:79:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  __isStorageError: true,
+  namespace: 'storage',
+  status: 400,
+  statusCode: '404'
+}

@@ -1,0 +1,16 @@
+
+> logistics-import@1.0.0 dev
+> next dev -p 3001
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+  - Experiments (use with caution):
+    · cpus
+
+ ✓ Starting...
+ ✓ Ready in 9.7s
+ ○ Compiling / ...
+ ✓ Compiled / in 10.1s (621 modules)
+ GET / 200 in 1522ms
+^C^C

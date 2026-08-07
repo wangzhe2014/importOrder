@@ -23,6 +23,8 @@ import { ProgressModal } from '@/components/ProgressModal'
 import { ResultModal } from '@/components/ResultModal'
 import { RuleManager } from '@/components/RuleManager'
 import { RuleCenter } from '@/components/RuleCenter'
+import { ImportMonitorPanel } from '@/components/ImportMonitorPanel'
+import { TraceSearchPanel } from '@/components/TraceSearchPanel'
 import { PreviewRow, ParsingRule, ShipmentData, ImportResult, FIELD_DISPLAY_NAMES } from '@/types'
 import { validateAll, hasErrors, getAllErrors } from '@/utils/validator'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
@@ -94,7 +96,7 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState({ progress: 0, current: 0, total: 0 })
   const [fileParseError, setFileParseError] = useState('')
   const [ruleParseError, setRuleParseError] = useState('')
-  const [activeTab, setActiveTab] = useState<'upload' | 'shipments' | 'rules'>('upload')
+  const [activeTab, setActiveTab] = useState<'upload' | 'shipments' | 'rules' | 'monitor' | 'traces'>('upload')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const duplicateCheckRequestRef = useRef(0)
 
@@ -354,68 +356,43 @@ export default function Home() {
       return
     }
 
-    setLoadingMessage('正在提交运单数据...')
-    setUploadProgress({ progress: 35, current: 0, total: latestRows.length })
-
-    const shipments: ShipmentData[] = latestRows
-      .filter((row) => row.errors.length === 0 && !row.isDuplicate)
-      .map((row) => ({
-        external_code: row.external_code,
-        store_name: row.store_name,
-        receiver_name: row.receiver_name,
-        receiver_phone: row.receiver_phone,
-        receiver_address: row.receiver_address,
-        sku_code: row.sku_code,
-        sku_name: row.sku_name,
-        sku_quantity: row.sku_quantity,
-        sku_spec: row.sku_spec,
-        remark: row.remark,
-      }))
-
     try {
-      setUploadProgress({ progress: 55, current: 0, total: shipments.length })
-      const response = await fetch('/api/shipments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shipments),
-      })
-
+      if (!currentFile || !selectedRule) {
+        throw new Error('缺少原始文件或解析规则，请重新上传')
+      }
+      setLoadingMessage('正在创建异步导入任务...')
+      setUploadProgress({ progress: 55, current: 0, total: latestRows.length })
+      const formData = new FormData()
+      formData.append('file', currentFile)
+      formData.append('rule', JSON.stringify(selectedRule))
+      const response = await fetch('/api/import-tasks', { method: 'POST', body: formData })
       const result = await response.json()
-      const completedCount = Number(result.success || 0) + Number(result.failed || 0)
-      setUploadProgress({
-        progress: 90,
-        current: Math.min(completedCount || shipments.length, shipments.length),
-        total: shipments.length,
-      })
       if (!response.ok || result.error) {
         const message = result.error || result.message || `提交接口返回异常：HTTP ${response.status}`
         setImportResult({
-          success: result.success || 0,
-          failed: result.failed || shipments.length,
-          failedRows: result.failedRows || [],
+          success: 0,
+          failed: latestRows.length,
+          failedRows: [],
           error: message,
           failedReasons: result.failedReasons || [{ message }],
         })
       } else {
-        setImportResult(result)
+        window.location.assign(`/import/${encodeURIComponent(result.task_id)}`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '网络异常或服务不可用'
       setImportResult({
         success: 0,
-        failed: shipments.length,
+        failed: latestRows.length,
         failedRows: [],
         error: `提交请求失败：${message}`,
         failedReasons: [{ message: `提交请求失败：${message}` }],
       })
     } finally {
-      setUploadProgress({ progress: 100, current: shipments.length, total: shipments.length })
-      window.setTimeout(() => {
-        setLoading(false)
-        setAppState('result')
-      }, 260)
+      setUploadProgress({ progress: 100, current: latestRows.length, total: latestRows.length })
+      setLoading(false)
     }
-  }, [applyDatabaseDuplicates, previewRows])
+  }, [buildValidatedPreviewRows, currentFile, previewRows, selectedRule])
 
   const handleBackToRules = useCallback(() => {
     setAppState('select-rule')
@@ -426,6 +403,8 @@ export default function Home() {
     { id: 'upload', label: '智能导入', icon: Upload },
     { id: 'shipments', label: '运单列表', icon: List },
     { id: 'rules', label: '规则中心', icon: Settings },
+    { id: 'monitor', label: '导入监控', icon: Activity },
+    { id: 'traces', label: 'Trace 检索', icon: Activity },
   ]
 
   const currentStepIndex = useMemo(() => {
@@ -450,6 +429,10 @@ export default function Home() {
       setActiveTab('shipments')
     } else if (id === 'rules') {
       setActiveTab('rules')
+    } else if (id === 'monitor') {
+      setActiveTab('monitor')
+    } else if (id === 'traces') {
+      setActiveTab('traces')
     }
     setSidebarOpen(false)
   }
@@ -461,6 +444,14 @@ export default function Home() {
 
     if (activeTab === 'rules') {
       return <RuleCenter />
+    }
+
+    if (activeTab === 'monitor') {
+      return <ImportMonitorPanel />
+    }
+
+    if (activeTab === 'traces') {
+      return <TraceSearchPanel />
     }
 
     if (appState === 'upload') {

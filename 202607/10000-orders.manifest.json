@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-08-06T01:13:03.809Z",
+  "file": "10000-orders.xlsx",
+  "file_size_bytes": 656917,
+  "xlsx_compression": true,
+  "header_rows": 1,
+  "data_rows": 10000,
+  "total_rows_in_sheet": 10001,
+  "sku_master_expected": 20000,
+  "invalid_sku_rows": [
+    998,
+    1995,
+    2992,
+    3989,
+    4986,
+    5983,
+    6980,
+    7977,
+    8974,
+    9971
+  ],
+  "columns": [
+    "外部编码",
+    "收货门店",
+    "收件人姓名",
+    "收件人电话",
+    "收件人地址",
+    "SKU编码",
+    "SKU名称",
+    "SKU数量",
+    "SKU规格",
+    "备注"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "testId": "loadtest_1785935674887",
+  "timestamp": "2026-08-05T13:15:02.333Z",
+  "durationMs": 27446,
+  "targetMet": true,
+  "metrics": {
+    "uploadP95Ms": 1799,
+    "taskPollCount": 9,
+    "totalRows": 10000,
+    "successRows": 9998,
+    "failedRows": 2,
+    "errorRate": 0.0002,
+    "finalStatus": "partial_success",
+    "workerBackend": "auto",
+    "batchSize": 1000
+  },
+  "conclusion": "✅ 压测目标达成：总耗时 27446ms ≤ 60s，成功行数 9998，失败行数 2。"
+}

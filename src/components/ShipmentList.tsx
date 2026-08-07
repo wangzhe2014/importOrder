@@ -28,7 +28,22 @@ interface ShipmentListResponse {
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 const DEFAULT_PAGE_SIZE = 10
 
+function toDateInputValue(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function defaultDateFilters() {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - 2)
+  return {
+    start_date: toDateInputValue(start),
+    end_date: toDateInputValue(end),
+  }
+}
+
 export function ShipmentList() {
+  const defaultDates = useMemo(() => defaultDateFilters(), [])
   const [data, setData] = useState<ShipmentData[]>([])
   const [total, setTotal] = useState(0)
   const [summary, setSummary] = useState({ storeCount: 0, skuQuantity: 0 })
@@ -42,8 +57,8 @@ export function ShipmentList() {
     external_code: '',
     receiver_name: '',
     store_name: '',
-    start_date: '',
-    end_date: '',
+    start_date: defaultDates.start_date,
+    end_date: defaultDates.end_date,
   })
   const [searchFilters, setSearchFilters] = useState(filters)
   const [loading, setLoading] = useState(false)
@@ -102,11 +117,23 @@ export function ShipmentList() {
       external_code: '',
       receiver_name: '',
       store_name: '',
-      start_date: '',
-      end_date: '',
+      start_date: defaultDates.start_date,
+      end_date: defaultDates.end_date,
     }
     setFilters(emptyFilters)
     setSearchFilters(emptyFilters)
+    setPage(1)
+    setJumpPage('')
+  }
+
+  const handleAllDates = () => {
+    const nextFilters = {
+      ...filters,
+      start_date: '',
+      end_date: '',
+    }
+    setFilters(nextFilters)
+    setSearchFilters(nextFilters)
     setPage(1)
     setJumpPage('')
   }
@@ -198,7 +225,7 @@ export function ShipmentList() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-8">
           <SearchInput
             placeholder="搜索外部编码"
             value={filters.external_code}
@@ -231,6 +258,14 @@ export function ShipmentList() {
           >
             <Search className="h-4 w-4" />
             查询
+          </button>
+          <button
+            onClick={handleAllDates}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 rounded-lg border border-[#0fc6c2] px-4 py-2 text-[#0b6e6e] transition-colors hover:bg-[#e8fafa] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Calendar className="h-4 w-4" />
+            全部日期
           </button>
           <button
             onClick={handleReset}
@@ -280,7 +315,7 @@ export function ShipmentList() {
             ) : data.length === 0 ? (
               <tr>
                 <td colSpan={12} className="px-4 py-12 text-center text-gray-500">
-                  暂无运单记录
+                  {searchFilters.start_date || searchFilters.end_date ? '当前日期范围暂无运单，可调整日期或查看全部日期。' : '暂无运单记录'}
                 </td>
               </tr>
             ) : (

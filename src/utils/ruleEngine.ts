@@ -699,3 +699,66 @@ export function parseTextWithRule(lines: string[], rule: ParsingRule): ShipmentD
 
   return normalizeParsedRows(results, config)
 }
+
+// 预扫描：为上传接口快速统计 Excel 标准表格的数据行数，并返回表头/数据起始行，
+// 用于按原始数据行将大文件切成多个处理单元（Worker 逐个分片解析，避免全量加载内存）。
+// 返回数组，每个元素对应一个 sheet 的分片规划。
+export interface ExcelParsePlan {
+  name: string
+  headerRowIndex: number
+  dataStartRowIndex: number
+  totalDataRows: number
+}
+
+export function estimateExcelDataRows(
+  sheets: { name: string; data: string[][] }[],
+  rule: ParsingRule
+): ExcelParsePlan[] {
+  const { config } = rule
+
+  let targetSheets = sheets
+  if (config.merge_sheets === false) {
+    targetSheets = [sheets[0]]
+  } else if (config.sheet_name_pattern) {
+    const regex = new RegExp(config.sheet_name_pattern)
+    targetSheets = sheets.filter((s) => regex.test(s.name))
+  }
+
+  return targetSheets.map((sheet) => {
+    const sheetData = sheet.data
+    const headerRowIndex = config.header_row_index ?? 0
+    const dataStartRowIndex = config.data_start_row_index ?? headerRowIndex + 1
+    const colMappings = config.column_mappings || {}
+    const resolved = resolveHeaderAndDataStart(
+      sheetData,
+      config,
+      headerRowIndex,
+      dataStartRowIndex,
+      colMappings
+    )
+
+    let totalDataRows = 0
+    for (let r = resolved.dataStartRowIndex; r < sheetData.length; r++) {
+      const row = sheetData[r]
+      if (!row) break
+
+      if (config.data_end_marker) {
+        const rowStr = row.join(' ')
+        if (rowStr.includes(config.data_end_marker)) break
+      }
+      if (shouldSkipRow(row, config)) continue
+
+      // 至少一列有内容才视为有效数据行
+      const hasContent = row.some((cell) => String(cell || '').trim() !== '')
+      if (!hasContent) continue
+      totalDataRows++
+    }
+
+    return {
+      name: sheet.name,
+      headerRowIndex: resolved.headerRowIndex,
+      dataStartRowIndex: resolved.dataStartRowIndex,
+      totalDataRows,
+    }
+  })
+}

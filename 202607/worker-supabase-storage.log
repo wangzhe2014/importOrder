@@ -1,0 +1,12 @@
+
+> logistics-import@1.0.0 worker
+> tsx src/worker/index.ts
+
+[worker] 启动 - 队列后端: db
+[worker] Worker 并发: 2, 批次大小: 1000
+[worker] 就绪，等待任务...
+[outbox] 轮询出错 Error: outbox select timeout after 10000ms
+    at Timeout._onTimeout (D:\trae\importOrder\src\lib\outbox\dispatcher.ts:30:43)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+^C
