@@ -31,7 +31,6 @@ export const serverConfig = {
   // 导入参数
   batchSize: Number(getOptionalEnv('IMPORT_BATCH_SIZE', '1000')),
   workerConcurrency: Number(getOptionalEnv('WORKER_CONCURRENCY', '2')),
-  skuCheckTimeoutMs: Number(getOptionalEnv('SKU_CHECK_TIMEOUT_MS', '3000')),
   staleBatchLockMinutes: Number(getOptionalEnv('STALE_BATCH_LOCK_MINUTES', '5')),
   taskCacheTtlMs: Number(getOptionalEnv('IMPORT_TASK_CACHE_TTL_MS', '1800000')),
   taskCacheMaxEntries: Number(getOptionalEnv('IMPORT_TASK_CACHE_MAX_ENTRIES', '4')),

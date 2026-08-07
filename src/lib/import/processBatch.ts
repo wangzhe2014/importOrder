@@ -12,7 +12,7 @@ import { buildShardSheet } from './fileParser'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 import { validateRow } from '@/utils/validator'
 import { writeTraceEvent } from '../trace'
-import { claimDegradedNotification, ensureTaskSkuValidation, loadTaskParseContext } from './taskCache'
+import { loadTaskParseContext } from './taskCache'
 
 const MAX_BATCH_RETRIES = 3
 const UPSERT_CHUNK = 500
@@ -241,33 +241,10 @@ export async function processBatchJob(job: QueueJob): Promise<void> {
       }
       parseMs = ruleStart - parseStart
       ruleMs = Date.now() - ruleStart
-      if (context.skuCodes.length === 0) {
-        context.skuCodes = Array.from(new Set(
-          parsedRows.map((row) => String(row.sku_code || '').trim()).filter(Boolean)
-        ))
-      }
-    }
-
-    // 3) SKU 批量校验（可降级）
-    const skuResult = await ensureTaskSkuValidation(context)
-    if (skuResult.degraded && claimDegradedNotification(context)) {
-      await supabaseAdmin.rpc('mark_task_degraded', {
-        p_task_id: task_id,
-        p_reason: 'SKU master validation timed out or failed.',
-      })
-      await writeTraceEvent({
-        trace_id,
-        task_id,
-        unit_id,
-        batch_index,
-        event_name: 'ImportTaskDegraded',
-        event_status: 'degraded',
-        message: 'SKU master validation skipped due to a timeout or database error.',
-      })
     }
 
     const validateStart = Date.now()
-    // 4) 行级校验：格式 + SKU 存在性 + 批内重复
+    // 4) 行级校验：格式 + 批内重复
     const items = parsedRows.map((row, i) => ({
       data: row,
       globalRow: start_row + i,
@@ -296,16 +273,6 @@ export async function processBatchJob(job: QueueJob): Promise<void> {
       if (dupRows.has(item.globalRow)) continue
       const errs = validateRow(item.data, item.globalRow)
       let rowHasError = errs.length > 0
-
-      if (!rowHasError && !skuResult.degraded) {
-        const sku = String(item.data.sku_code || '').trim()
-        if (sku && !skuResult.validSkus.has(sku)) {
-          rowHasError = true
-          errorEntries.push(
-            makeError(task_id, unit_id, batch_index, item.globalRow, 'sku_code', sku, ERROR_CODES.SKU_NOT_FOUND, `SKU ${sku} does not exist in SKU master data.`, trace_id)
-          )
-        }
-      }
 
       for (const e of errs) {
         const rawField = item.data[e.field as keyof ShipmentData]

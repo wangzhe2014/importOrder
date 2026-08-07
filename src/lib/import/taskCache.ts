@@ -2,7 +2,6 @@ import { gzipSync, gunzipSync } from 'zlib'
 import { ShipmentData, ParsingRule } from '@/types'
 import { ExcelParsePlan, estimateExcelDataRows } from '@/utils/ruleEngine'
 import { parseFileBuffer, ParsedSource } from './fileParser'
-import { validateSkus, SkuValidationResult } from './skuValidation'
 import { readUploadFile, saveTaskArtifact } from '../fileStorage'
 import { serverConfig } from '../server-env'
 
@@ -15,10 +14,6 @@ export interface TaskParseContext {
   source: ParsedSource | null
   primaryPlan: ExcelParsePlan | null
   batchRows?: Record<string, ShipmentData[]>
-  skuCodes: string[]
-  skuValidation?: SkuValidationResult
-  skuValidationPromise?: Promise<SkuValidationResult>
-  degradedNotified?: boolean
 }
 
 interface PersistedTaskArtifact {
@@ -27,7 +22,6 @@ interface PersistedTaskArtifact {
   file_name: string
   primaryPlan: ExcelParsePlan | null
   batchRows: Record<string, ShipmentData[]>
-  skuCodes: string[]
 }
 
 interface CacheEntry {
@@ -70,7 +64,6 @@ function fromArtifact(buffer: Buffer, fileRef: string, fileName: string): TaskPa
     source: null,
     primaryPlan: artifact.primaryPlan,
     batchRows: artifact.batchRows,
-    skuCodes: artifact.skuCodes,
   }
 }
 
@@ -78,7 +71,7 @@ async function parseSource(taskId: string, fileRef: string, fileName: string, ru
   const buffer = await readUploadFile(taskId, fileRef)
   const source = await parseFileBuffer(buffer, fileName)
   const primaryPlan = source.type === 'excel' ? (estimateExcelDataRows(source.sheets, rule)[0] || null) : null
-  return { file_ref: fileRef, file_name: fileName, source, primaryPlan, skuCodes: [] }
+  return { file_ref: fileRef, file_name: fileName, source, primaryPlan }
 }
 
 export async function loadTaskParseContext(
@@ -117,26 +110,8 @@ export async function saveTaskParseArtifact(
     file_name: context.file_name,
     primaryPlan: context.primaryPlan,
     batchRows: context.batchRows || {},
-    skuCodes: context.skuCodes,
   }
   const compressed = gzipSync(Buffer.from(JSON.stringify(artifact), 'utf8'))
   const saved = await saveTaskArtifact(taskId, ARTIFACT_NAME, compressed, 'application/gzip')
   return saved.file_ref
-}
-
-export async function ensureTaskSkuValidation(context: TaskParseContext): Promise<SkuValidationResult> {
-  if (context.skuValidation) return context.skuValidation
-  if (!context.skuValidationPromise) {
-    context.skuValidationPromise = validateSkus(context.skuCodes).then((result) => {
-      context.skuValidation = result
-      return result
-    })
-  }
-  return context.skuValidationPromise
-}
-
-export function claimDegradedNotification(context: TaskParseContext): boolean {
-  if (context.degradedNotified) return false
-  context.degradedNotified = true
-  return true
 }

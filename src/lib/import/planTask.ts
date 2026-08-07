@@ -3,7 +3,7 @@ import { ParsingConfig, ParsingRule } from '@/types'
 import { supabaseAdmin } from '../supabase-server'
 import { BATCH_SIZE, buildUnitId } from './constants'
 import { writeTraceEvent } from '../trace'
-import { claimDegradedNotification, ensureTaskSkuValidation, loadTaskParseContext, saveTaskParseArtifact } from './taskCache'
+import { loadTaskParseContext, saveTaskParseArtifact } from './taskCache'
 import { buildShardSheet } from './fileParser'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 
@@ -75,7 +75,6 @@ export async function planImportTaskJob(job: { payload: ImportTaskCreatedPayload
   }))
 
   const batchRows: Record<string, ReturnType<typeof parseExcelWithRule>> = {}
-  const skuCodes = new Set<string>()
   for (const batch of batches) {
     const rows = source.type === 'excel'
       ? parseExcelWithRule(
@@ -84,28 +83,8 @@ export async function planImportTaskJob(job: { payload: ImportTaskCreatedPayload
         )
       : parseTextWithRule(source.lines.slice(batch.start_row - 1, batch.end_row), parsingRule)
     batchRows[batch.unit_id] = rows
-    rows.forEach((row) => {
-      const sku = String(row.sku_code || '').trim()
-      if (sku) skuCodes.add(sku)
-    })
   }
   context.batchRows = batchRows
-  context.skuCodes = Array.from(skuCodes)
-
-  const skuResult = await ensureTaskSkuValidation(context)
-  if (skuResult.degraded && claimDegradedNotification(context)) {
-    await supabaseAdmin.rpc('mark_task_degraded', {
-      p_task_id: p.task_id,
-      p_reason: 'SKU master validation timed out or failed.',
-    })
-    await writeTraceEvent({
-      trace_id,
-      task_id: p.task_id,
-      event_name: 'ImportTaskDegraded',
-      event_status: 'degraded',
-      message: 'SKU master validation skipped due to a timeout or database error.',
-    })
-  }
 
   const artifactRef = await saveTaskParseArtifact(p.task_id, context)
 

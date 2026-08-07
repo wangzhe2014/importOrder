@@ -25,11 +25,12 @@ import { RuleManager } from '@/components/RuleManager'
 import { RuleCenter } from '@/components/RuleCenter'
 import { ImportMonitorPanel } from '@/components/ImportMonitorPanel'
 import { TraceSearchPanel } from '@/components/TraceSearchPanel'
+import { ImportTaskPanel } from '@/components/ImportTaskPanel'
 import { PreviewRow, ParsingRule, ShipmentData, ImportResult, FIELD_DISPLAY_NAMES } from '@/types'
 import { validateAll, hasErrors, getAllErrors } from '@/utils/validator'
 import { parseExcelWithRule, parseTextWithRule } from '@/utils/ruleEngine'
 
-type AppState = 'upload' | 'select-rule' | 'preview' | 'result' | 'shipments'
+type AppState = 'upload' | 'select-rule' | 'preview' | 'result' | 'import' | 'shipments'
 type ParsedFileData = {
   type: 'excel' | 'word' | 'pdf'
   fileName?: string
@@ -91,6 +92,7 @@ export default function Home() {
   const [selectedRule, setSelectedRule] = useState<ParsingRule | null>(null)
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([])
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [activeImportTaskId, setActiveImportTaskId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
   const [uploadProgress, setUploadProgress] = useState({ progress: 0, current: 0, total: 0 })
@@ -129,7 +131,8 @@ export default function Home() {
     setParsedData(null)
     setSelectedRule(null)
     setPreviewRows([])
-    setImportResult(null)
+setImportResult(null)
+    setActiveImportTaskId(null)
     setFileParseError('')
     setRuleParseError('')
   }, [])
@@ -376,8 +379,12 @@ export default function Home() {
           error: message,
           failedReasons: result.failedReasons || [{ message }],
         })
-      } else {
-        window.location.assign(`/import/${encodeURIComponent(result.task_id)}`)
+} else {
+        setAppState('import')
+        setCurrentFile(null)
+        setSelectedRule(null)
+        setPreviewRows([])
+        setActiveImportTaskId(String(result.task_id) || null)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '网络异常或服务不可用'
@@ -408,7 +415,7 @@ export default function Home() {
   ]
 
   const currentStepIndex = useMemo(() => {
-    if (appState === 'result') return 3
+    if (appState === 'result' || appState === 'import') return 3
     return Math.max(0, workflowSteps.findIndex((step) => step.id === appState))
   }, [appState])
 
@@ -525,6 +532,10 @@ export default function Home() {
           />
         </section>
       )
+    }
+
+    if (appState === 'import' && activeImportTaskId) {
+      return <ImportTaskPanel taskId={activeImportTaskId} onBack={resetImport} />
     }
 
     return (
